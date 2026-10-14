@@ -164,3 +164,36 @@
 - BirriaSDR (work/ext/birria/ours, built in the guest at /root/birria/ours/build) is patched for 0e8d:7961 and
   2.3–2.5 GHz (`BIRRIA_FREQ`). It refuses a chip whose ROM patch is loaded: it needs a cold boot that mt7921u never
   touches, which neither the guest nor host USB reset provides.
+
+## 2026-10-15: narrow rate codes in the PHY bandwidth field, and the clock-mode register
+- Static RE (notes/05, notes/06): the ROM has MT7996's register-field ("GCI") layer, with 1114 registers decoded in
+  work/crmap/. MT7921's TICKCR0 is **0x820b00a0** (WFSYS_ON at 0x820b0000): [1:0] WLAN_CLK_MODE, [4:2] LMAC_1X_MODE.
+  Measured on card B: 0 at cbw 0, **0x5 at cbw 4, 0xa at cbw 5**. The firmware already sets it, and the demodulator
+  still decodes 20 MHz there, so on MT7921 it is a MAC/WLAN tick scaler, not the demodulator clock. The ICAP 40 Msps
+  clock is unaffected: the earlier card-B capture decoded at exactly 5 MHz.
+- **Rate meter**: tools/guest/icapcode.sh takes ICAP hold counts per tap while 0x83081000 changes; runs of 2 at the
+  40 Msps capture clock mean data at 20 Msps. Base native cbw 4 (bits 30:28 = 0xd):
+
+  | 0x83081000 | tap 4 (front end) | tap 12 (after channel filter) |
+  |---|---|---|
+  | 0xd0000000 (firmware value, BW code 0) | 20 Msps | **40 Msps** |
+  | 0xd1/0xd2/0xd6/0xd7 | 40 Msps or faster | 40 Msps |
+  | 0xd3 | frozen (constant) | frozen |
+  | **0xd4 / 0xd5** | 20 Msps | **20 Msps** |
+
+  The cbw 5 base (0xf…) gives the same pattern. **BW codes 4 and 5 in [27:24] move the post-front-end chain to the
+  narrow rate.** The firmware never writes them: FUN_93dbd4 clears [27:24] for narrow, and ContiTx maps only to
+  0/1/2/7. This is the missing piece behind "front end narrows, demodulator doesn't".
+- With codes 4/5, B reports **no frames at all**: no ambient 20 MHz beacons, no noise detections, nothing from A's
+  5 MHz frames (tools/guest/c2c.sh, B only and symmetric). The 20 MHz demodulator behaviour is gone. Whether packet
+  detection works in that state (MAC dropping frames vs. a dead demodulator) is the next question:
+  tools/guest/mibdiff.sh (MIB counters) and companion fields from notes/06 (0x8300d06c bits 3/4, 0x83080000 bit 12,
+  0x8300d0ac SFO).
+- 0x8300d06c field [6:3] (16 values, A 5 MHz → B cbw 4): no decode.
+- Harness without the X410: tools/guest/c2c.sh. A sends verified 5 MHz frames; candidates are written on B (or on
+  both with BOTH=1) and restored. It counts frames from A's SA, bad-FCS frames and non-beacon frames.
+  tools/guest/txicap.sh: card B captures card A's transmission through ICAP (B at cbw 0 = 40 Msps) for offline
+  decoding. It replaces the X410 for TX-width checks.
+- 2026-10-15 ~00:40: the lab host (= "lorien", 155.54.95.95) went down for the announced reboot during a mistaken
+  `fwdbg dump` call that had its arguments swapped and read MCU address 0x800. Correct usage: `fwdbg.py <phy> dump
+  <out> <page>...`.
