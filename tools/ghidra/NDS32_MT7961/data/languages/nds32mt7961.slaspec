@@ -1,0 +1,4 @@
+@define ENDIAN "little"
+
+@include "nds32.sinc"
+@include "ex9_mt7961.sinc"

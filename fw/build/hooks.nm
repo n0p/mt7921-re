@@ -1,0 +1,9 @@
+009178ea A fw_evt_alloc
+00953dde A fw_evt_finalize
+00953ece A fw_evt_send
+00921898 A fw_log_ctl
+00915918 A fw_memset
+009217ba A fw_printf
+e027cb00 T hk_dbgcmd
+e027cb00 A HOOK_BASE
+e027eb00 W _SDA_BASE_

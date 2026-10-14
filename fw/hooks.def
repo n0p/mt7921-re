@@ -1,0 +1,6 @@
+# Hook installation: one per line
+#   ptr  <download addr>  <symbol>     write the symbol's address (u32 LE) at addr
+# Download addresses: DLM data at/after 0x020170fc is live - 0x44c.
+
+# CE cid 0xcb (stock stub, `return 0`): handler pointer at live 0x020262bc
+ptr 0x02025e70 hk_dbgcmd

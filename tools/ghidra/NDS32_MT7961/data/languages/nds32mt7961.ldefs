@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<language_definitions>
+  <language processor="NDS32"
+            endian="little"
+            instructionEndian="big"
+            size="32"
+            variant="mt7961"
+            version="1.0"
+            slafile="nds32mt7961.sla"
+            processorspec="nds32.pspec"
+            id="NDS32:LE:32:mt7961">
+    <description>NDS32 LE, EX9 table of MT7961 RAM code inlined</description>
+    <compiler name="default" spec="nds32.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="nds32.dwarf"/>
+  </language>
+  <language processor="NDS32"
+            endian="little"
+            instructionEndian="big"
+            size="32"
+            variant="mt7961rom"
+            version="1.0"
+            slafile="nds32mt7961rom.sla"
+            processorspec="nds32.pspec"
+            id="NDS32:LE:32:mt7961rom">
+    <description>NDS32 LE for the MT7961 boot ROM / ROM patch (no EX9 inlining, gp tracked)</description>
+    <compiler name="default" spec="nds32.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="nds32.dwarf"/>
+  </language>
+  <language processor="NDS32"
+            endian="little"
+            instructionEndian="big"
+            size="32"
+            variant="mt7961_2022"
+            version="1.0"
+            slafile="nds32mt7961_2022.sla"
+            processorspec="nds32.pspec"
+            id="NDS32:LE:32:mt7961_2022">
+    <description>NDS32 LE, EX9 table of MT7961 RAM code build 20220110230951 inlined</description>
+    <compiler name="default" spec="nds32.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="nds32.dwarf"/>
+  </language>
+</language_definitions>

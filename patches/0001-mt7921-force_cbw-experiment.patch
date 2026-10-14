@@ -1,0 +1,29 @@
+--- a/drivers/net/wireless/mediatek/mt76/mt7921/mcu.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7921/mcu.c
+@@ -858,6 +858,13 @@
+ 				 &req, sizeof(req), false);
+ }
+ 
++/* Experiment: override the CMD_CBW_* value sent in CHANNEL_SWITCH / SET_RX_PATH.
++ * The firmware maps CMD_CBW_10MHZ (4) and CMD_CBW_5MHZ (5) to dedicated internal widths.
++ */
++static int force_cbw = -1;
++module_param(force_cbw, int, 0644);
++MODULE_PARM_DESC(force_cbw, "Override channel bandwidth sent to firmware (4=10MHz, 5=5MHz, -1=off)");
++
+ int mt7921_mcu_set_chan_info(struct mt792x_phy *phy, int cmd)
+ {
+ 	struct mt792x_dev *dev = phy->dev;
+@@ -889,6 +896,12 @@
+ 		.band_idx = phy != &dev->phy,
+ 	};
+ 
++	if (force_cbw >= 0) {
++		req.bw = force_cbw;
++		dev_info(dev->mt76.dev, "chan_info cmd %#x ch %d: forcing bw %d\n",
++			 cmd, req.control_ch, force_cbw);
++	}
++
+ 	if (chandef->chan->band == NL80211_BAND_6GHZ)
+ 		req.channel_band = 2;
+ 	else

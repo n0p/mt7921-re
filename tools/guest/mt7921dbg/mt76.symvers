@@ -1,0 +1,2 @@
+0xccc0a4fe	mt76_mcu_send_and_get_msg	drivers/net/wireless/mediatek/mt76/mt76	EXPORT_SYMBOL_GPL	
+0x29d5b2da	mt76u_vendor_request	drivers/net/wireless/mediatek/mt76/mt76-usb	EXPORT_SYMBOL_GPL	

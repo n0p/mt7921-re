@@ -1,0 +1,4 @@
+# Opt-in (make OUTBAND=1): sniffer-config "outband" frequency override for 2.3 GHz tuning (notes/04-2g3-tuning.md).
+# The UNI SNIFFER config TLV pad bytes +14..15 (u16, MHz) become rlmPhySetChannel's outband argument; 0 = stock.
+bin 0x0096dc00 build/asm/sniffer_outband_tramp.bin   # trampoline in region 0 trailer pad
+bin 0x00923d12 build/asm/sniffer_outband_call.bin    # jal rlmPhySetChannel -> jal trampoline
