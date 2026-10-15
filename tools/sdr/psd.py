@@ -21,7 +21,7 @@ def main():
     secs = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
     rate = float(sys.argv[3]) * 1e6 if len(sys.argv) > 3 else 31.25e6
     gain = float(sys.argv[4]) if len(sys.argv) > 4 else 40
-    ant = sys.argv[5] if len(sys.argv) > 5 else "TX/RX0"
+    ant = sys.argv[5] if len(sys.argv) > 5 else "RX1"  # in-room antenna; TX/RX0 (radios 0/1) is the external one
     label = sys.argv[6] if len(sys.argv) > 6 else ""
 
     usrp = uhd.usrp.MultiUSRP(ARGS)

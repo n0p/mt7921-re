@@ -11,6 +11,9 @@ import struct
 import subprocess
 import sys
 
+sys.path.insert(0, "/root/fwre")
+from dbglock import held  # noqa: E402
+
 RAW = "/sys/kernel/debug/mt7921dbg/raw"
 EXT = 0xed
 
@@ -21,10 +24,11 @@ def fw(phy, *a):
 
 
 def send(phy, ext_id, req):
-    with open("/sys/kernel/debug/mt7921dbg/target", "w") as f:
-        f.write(phy)
-    with open(RAW, "wb", buffering=0) as f:
-        f.write(struct.pack("<I", EXT | (ext_id << 8)) + req)
+    with held():  # target + raw as one step: another tool may be rewriting target for the other card
+        with open("/sys/kernel/debug/mt7921dbg/target", "w") as f:
+            f.write(phy)
+        with open(RAW, "wb", buffering=0) as f:
+            f.write(struct.pack("<I", EXT | (ext_id << 8)) + req)
 
 
 def main():

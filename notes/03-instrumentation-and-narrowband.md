@@ -197,3 +197,224 @@
 - 2026-10-15 ~00:40: the lab host (= "lorien", 155.54.95.95) went down for the announced reboot during a mistaken
   `fwdbg dump` call that had its arguments swapped and read MCU address 0x800. Correct usage: `fwdbg.py <phy> dump
   <out> <page>...`.
+- **Why B shows "nothing at all" with codes 4/5 (hypothesis, to verify):** mt76's `mt76_connac2_mac_fill_rx_rate`
+  (mt76_connac_mac.c) returns -EINVAL for any P-RXV FRAME_MODE ([14:12]) outside 0..3 (20/40/80/160). If the PHY
+  reports narrow frames with bandwidth 4/5, mt76 drops every frame, including in monitor mode.
+  mt7921dbg now has a kprobe on that function (`/sys/kernel/debug/mt7921dbg/rxbw`). It keeps a histogram of the
+  RX-vector bandwidth of every parsed frame and the last raw vector with a value >= 4. With `rxbw_fix=1` (default)
+  it rewrites 4..7 to 20 MHz so those frames reach the monitor interface. A proper driver fix later maps 4/5 to
+  RATE_INFO_BW_5/RATE_INFO_BW_10.
+- 2026-10-15 (guest restarted on the rebooted host from the recovered QEMU command line, card A 2-2 SS, card B 5-1 USB 2):
+  - kprobe histogram, per target card: with codes 4/5 card B's driver parses **0** RX vectors (code 5) / 2 (code 4) per
+    window, against 545 at baseline. The PHY delivers nothing. The mt76 RX-vector drop is real but is not the
+    cause here.
+  - MIB diff (tools/guest/mibdiff.sh, 2 s idle vs a burst of A's 5 MHz frames), B cbw 4:
+    - baseline: RX/FCS/time counters 0x820ed038/044/5a8/698/76c/780/788.. all count;
+    - code 5: only 0x820ed024/028/030 and 0x820ed02c (busy/energy-time-like) rise, 0x180b → 0x10a59 during A's
+      burst. Energy is seen, but there is no packet detection and no RX/FCS events.
+  - X410 802.11a/p frames at 20/10/5 MHz against B with codes 4/5 decode nothing. Companions tried, all fail:
+    0x8300d06c 0x88/0x90/0xa0, TICKCR0 0/0xa, path-1 same code, 0x83080000 bit 12. Grid of [31:28] ∈
+    {8,9,c,d,e,f,4,5} × code {4,5} × base {cbw 0, cbw 4}: nothing (≤1 stray 20 MHz frame).
+  - Rate meter at the 20 MHz base: 0x84/0x85/0x94/0x95 leave the front end (tap 4) at 40 Msps but run tap 12 at
+    20 Msps. Codes 4/5 alone insert a ÷2 between the front end and the channel filter/demodulator domain, the
+    decimation a 10 MHz channel needs. With 0x94/0x95 the tap-4 amplitude drops 80 → 18 (gain/AGC change).
+  - ICAP capture domains decoded from FUN_96c61c:
+    - domain 4 = BirriaSDR's (MODE 0x13, bit 23);
+    - domain 1 = MODE 0x14, 0x830ad448 [15:8] SEL, [19:18] rate, bit 24;
+    - domain 2 = MODE 0x20/0x21, 0x830ad44c [7:0] SEL, [18:16] rate, bit 22/21.
+
+    `ICAP_DOM` in icap.py selects them. Domain 1 live SELs: 0/2/4/6 (full rate), 16, 18–22 (low amplitude,
+    ~128 distinct values). They show no holds in code 0 or code 5, so they are outside the narrowed chain.
+  - **Codes 4/5 also stop DSSS/CCK reception** (2437 MHz, A's injected frames go out as 1 Mbps DSSS; c2c.sh CH=6 BAND=0):
+    40/40 at baseline, 0 frames of any kind with 0x84/0x85. 0x81 (40 MHz) still delivers ~420 ambient frames.
+    Whatever stops is common to both demodulators: a receive back-end clock/enable/handoff, not OFDM sync.
+    Forcing every PHY clock enable on (0x83080004/08 and 0x83090004/08 = 0xffffff, as the ROM calibration does) does
+    not revive it, and does not disturb normal reception.
+  - With codes 4/5, A's **transmission is unchanged** (X410: still 5 MHz, decodable). The bandwidth code only acts on the
+    receive chain behind the front end. TX width depends only on [30:29].
+  - ATE receive at 2437 MHz: COMMAND=STARTRX leaves 0x83081000 at 0x82000000 (BW code 2) even after AT 0x47/0x48 = 0.
+    The ATE RX counters and 0x83081010.. stay 0. MediaTek's test receive needs more setup than this; parked.
+  - CONN_INFRA 0x7c00a008 = 0x12800800 (fields [29:24] 0x12, [23:18] 0x20, [11:6] 0x20) look like bus dividers.
+    Not written.
+- **TX ÷4 needs TICKCR0.** When the narrow bits are written by hand (0x83081000 bit 30), the PPDU is a valid 5 MHz
+  frame, but TX never completes (the transmitter keys continuously) unless 0x820b00a0 [1:0] WLAN_CLK_MODE ≥ 1. The
+  firmware's own narrow path (FUN_941d22 → FUN_941cfa) writes 0x5 (10 MHz) / 0xa (5 MHz) there. TICKCR0 scales
+  the MAC/LMAC timing (TX end, slot, SIFS), not the PHY sample clock.
+
+## 2026-10-15: PHY stage counters as a receive oracle, and what BW codes 4/5 really are
+- **PHY counters** (firmware FUN_936cc8 / FUN_9624f2), each word [31:16] OFDM | [15:0] CCK:
+  - 0x83081010 PD (packet detect);
+  - 0x83081014 MDRDY (header decoded, RX vector ready);
+  - 0x83081018 RxOk;
+  - 0x8308101c [31:16] CCK SIG error | [15:0] SFD error;
+  - 0x83081020 [31:16] OFDM SIG error | [15:0] TAG error;
+  - 0x83081024 FCS error.
+
+  Enable with 0x83088234 |= 0x30000 and 0x83082004 = (v & ~0xe07) | 0xa05. The counters saturate at 0xffff, so each
+  measurement window clears them through the STSCNT_EN edge: 0x83082004 [11:9] = 0, then 5.
+
+  These counters separate "no detection" (PD = 0), "detected but header lost" (PD > 0, MDRDY = SIG = 0) and "header
+  decoded, driver/MAC drops it" (MDRDY > 0, no frame on the interface). Tools: tools/sdr/pdcnt.sh (X410 frames vs a B
+  candidate, FREQ=2350 by default) and tools/guest/pdscan.py (a field scan scored by MDRDY+SIG).
+- Results at 2350 MHz, card B, X410 frames at 20/10/5 MHz (moved from 5180 because ambient APs inflated PD):
+  - native narrow (code 0, 0xd0000000): PD and MDRDY count only for 20 MHz frames;
+  - codes 4/5 (0xd4/0xd5): PD counts (thousands per window, noise and frames alike) but MDRDY = SIG = 0. The chain
+    detects packets after the ÷2, and nothing reaches the SIGNAL decoder.
+- **pdscan** over page 0x83088000 with base 0xd4000000 (668 candidates, byte b → 2b and b/2): one hit,
+  **0x83088014 byte 3 0xea → 0x75** (0x75070808). MDRDY 342, SIG 240, RxOk 46 per window, against 0 at baseline.
+  Decode test with that value and the X410 sending 20/10/5 MHz frames: B decodes **87 of the 20 MHz frames and no
+  10/5 MHz frame**. The field revives the 20 MHz-timed SIGNAL path behind the ÷2. It does not make a narrow
+  demodulator. The scan was stopped at candidate ~50 of 668.
+- **E1: are codes 4/5 a filtered narrow decimation or a lane split?** ICAP taps 12/13, 4096 samples at 40 Msps, B
+  idle at 5180 on the 20 MHz base (tools/guest/icapsave.sh, work/icap/e1/). Noise power per band relative to
+  0–2 MHz:
+
+  | value | 0–2 | 2–4 | 4–6 | 6–8 | 8–10 | 10–14 | 14–20 MHz |
+  |---|---|---|---|---|---|---|---|
+  | 0x90 tap 12 (20 MHz, 40 Msps) | 0 | -0.4 | -1.0 | +0.1 | -1.6 | -12.8 | -28.2 |
+  | 0x94 tap 12, raw 40 Msps | 0 | -7.1 | -9.1 | -9.3 | -12.5 | -13.9 | -19.1 |
+  | 0x94 tap 12, ÷2 (20 Msps) | 0 | -7.0 | -8.3 | -8.2 | -9.8 | | |
+  | 0x95 tap 12, ÷2 | 0 | -2.5 | -3.1 | -2.8 | -4.3 | | |
+  | 0x95 tap 13, ÷2 | 0 | -2.7 | -3.3 | -3.6 | -7.2 | | |
+
+  A 10 MHz channel filter would leave 6–8 MHz below -7 dB and 8–10 MHz below -20 dB. Neither code has a sharp
+  ±5 MHz edge, so codes 4/5 decimate without a narrow channel filter (or split the band into lanes). That fits the
+  decode test: the samples behind the ÷2 still carry a 20 MHz-wide signal, and the only thing the SIGNAL decoder can
+  lock to is 20 MHz timing. **Codes 4/5 are not the hidden narrow receiver.**
+
+## 2026-10-15: no narrow demodulator in hardware; narrow RX through a firmware IQ stream works
+### Hardware leads closed (all measured on card B unless noted)
+- RXFE_CTRL 0x8308f064 [7:4] = 1..15 and [1:0], WF_RXFE_01 0x8308f068 (MAN_DOWNSAMP, DLPF_MODE_MAN, ADC480M,
+  AFIFO_CK320M, WB_SEL, RXFDIQ_TAP_NUM) at native cbw 4 / 2350 MHz against X410 10 MHz frames: no decode
+  (tools/guest/pdscan.py list mode, then monitor capture). [1:0] = 1 and DLPF CTL 2 kill the chain. Note: the
+  OFDM "RxOk" counter 0x83081018 [31:16] counts every frame handed to the MAC, bad FCS included.
+- A-die RF 0xb00/0xb04 (the only bandwidth-class fields in FUN_93dbd4's per-path tail: 20/40/narrow 0x10/0xf/1,
+  80+ 0x20/0x1f/2) halved or doubled on both paths at cbw 0: 20 MHz frames still decode, no 10/5 MHz decode. Not
+  a sample-rate control.
+- 0x83081000 = 0xb0 (bit 29 only) keeps 20 MHz RX; 0xb4/0xb5 kill RX; 0xf0 decodes nothing.
+- 0x81026008 is the MCU/bus DVFS divider set (FUN_9495f6, "Switch DVFS P%d FAIL"), not a PHY clock.
+- TICKCR0 0x820b00a0: bit 30 alone already gives the ÷4 TX with TICKCR0 = 0 (the TX only never ends), so
+  WLAN_CLK_MODE is a MAC tick, not the baseband clock. MT7996's own 5/10 MHz support is the same three writes
+  (BN_6188 0x83086010 ÷4/÷2, TICKCR0, RATE BWCR) and no BW code (workflow wf_68eb0de5: mt7996-analogs, synthesis).
+- Conclusion: the demodulator runs only at 20 MHz numerology (on a 40 Msps stream for code 0, or a 20 Msps stream
+  for codes 4/5 once 0x83088014[31:24] is rescaled). 802.11p (10 MHz) and 5 MHz reception are not possible in the
+  MT7921 PHY. TX: 5 MHz (÷4) works, 10 MHz (÷2) does not exist.
+- A MCU read of 0x00080000 (the firmware's ICAP mode-1 ring address, 4·idx without the 0xe0200000 base) hung card
+  B's MCU; recovered by rigreset. ICAP ring mode 1 data is not host-visible at 0xe0280000.
+
+### Firmware IQ streamer (fw/src/iqstream.c, BirriaSDR's DMA method inside the running firmware)
+- At runtime events travel through the packet SRAM, so MCU WFDMA TX ring 0 (0x54000300: 4 descriptors at
+  0x02109900, idx 2/2) is idle and maps to USB bulk IN 0x84 (mt76's data endpoint). hk_iqstream borrows it, posts
+  descriptors whose payload points straight at the ICAP mode-0 ring (0xe0200000, 40 Msps, tap 4 = front end), and
+  restores it. Packets carry a 48-byte header that mt7921 parses as an unsolicited MCU event (eid 0xcc, seq 0) and
+  frees; mt7921dbg's kprobe on mt7921_mcu_rx_event copies them into a 64 MiB ring (debugfs iq/iqstat) as records
+  with the absolute sample position.
+- The debug command gained DBG_CALL_DETACH (op 4): it answers first, then calls, because the capture overwrites
+  the packet SRAM that carries events. The hooks are now built with -ffixed-$fp (the firmware keeps fp == gp; a
+  long-running hook must not clobber it under interrupts).
+- MAC RX must stay enabled (0x820e3000 bit 9 clear): with RX disabled the PHY front end freezes (every sample
+  (-8, 3)). TX disabled (bit 8) as in BirriaSDR.
+- Throughput through QEMU's usb-host: card B (USB 2) 33 MB/s; card A (USB 3) 137 MB/s with 8 KiB packets,
+  147 MB/s with 16 KiB packets (4080 samples, header + payload + trailer fitting mt76u's 4 x 4 KiB RX URB).
+  Model ~19 us per packet + 6.5 us per KiB: at most ~150 MB/s, below the fixed 40 Msps x 4 bytes = 160 MB/s.
+  Descriptors in flight do not help (1/2/3: same time per packet), and 3 in flight corrupt the stream (CW-tone
+  chunk-phase test: 11 jumps > 0.5 rad; 1 in flight: 0 of 177).
+- Hence an energy gate on the MCU: mean |I|+|Q| of the newest nsum samples vs a threshold; idle -> the read
+  position skips to `pre` samples behind the producer; busy -> contiguous streaming, the ring absorbing the
+  deficit (~20 ms). Config block iq_cfg (chunk, inflight, thresh, hang_us, pre, nsum, stop, dur_ms).
+- The AGC hunts between gain states on noise (|x| ~1340 <-> ~150 every few ms), so the gate needs manual gain:
+  BirriaSDR's recipe (RF 0x768 force on both paths, 0x83000108 digital, 0x83000150 D force, 0x830000c4 A/B/C
+  forces); LNA 3 / filter 4 / digital 6 gives a steady |x| ~83 at 2350 MHz.
+- tools: tools/guest/iqstream.sh (GAIN, THRESH, NSUM, HANG, PRE, DURMS, CHUNK), tools/sdr/iqrec.py (records ->
+  contiguous segments), tools/sdr/iqdec.py (segments -> resample to W Msps -> rx80211).
+- **Result (card A at 2350 MHz, cbw 0, X410 5 MHz 802.11a frames at gain 30, 150 frames 40 ms apart):** the gate
+  opened for every frame (168 segments, 201 ms of samples out of 20 s); iqdec decoded **all 150 frames at 5 MHz,
+  111 with valid FCS** ("X410-OFDM-05.00-000000.." in sequence, CFO ~16.5 kHz). The failures are SNR (in-band
+  ~6 dB at this X410 power), not segment truncation.
+- **The receiving card's own PHY corrupts narrow frames.** At 10 MHz the damage sat at fixed symbols (21–25, ~200 us
+  into every frame; |DC| spikes in the raw samples there), and FCS-good frames were 11–27 of 150. Parking card A's
+  20 MHz demodulator in BW code 4 (0x83081000 = 0x84000000; front-end tap 4 unaffected) removes it: 10 MHz frames
+  **149/152 good FCS**, 5 MHz **149/154**. The streamer is not at fault: no discontinuity at chunk boundaries
+  (mean |dx| 89 at and away from them), and the X410 frame decodes offline at 10 dB SNR. tools/sdr/symcheck.py
+  tallies damaged symbol indices.
+- With 3 descriptors in flight, or an ungated stream that drains continuously for 12 s, the producer itself slowed
+  to ~12.6 Msps (contiguous positions, no overrun registered, nothing decodable). Continuous DMA reads starve the
+  ICAP's SRAM writes. Gated operation at moderate traffic is unaffected.
+- The gate now integrates first differences (|dI|+|dQ|). At 10 cm, card B's carrier leakage sits 1.2 kHz from card
+  A's LO with |mean| ~1650 (noise ~30), and with plain |I|+|Q| it held the gate open continuously. iqdec applies a
+  20 kHz DC notch before detection (a CW looks like an endless STF to the autocorrelation detector). Differenced
+  noise per LNA code (filter 4, digital 6, 128-sample means): 17 / 27 / 46 / 84; p99.9 22 / 32 / 54 / 102.
+  Absolute |I|+|Q|: 28 / 32 / 57 / 104.
+- **Card-to-card narrow link (2350 MHz):** card B transmits with its own hardware (CHANNEL_SWITCH cbw 4 = ÷4 = 5 MHz
+  PPDU, inject.py on mon_b, 150 x 255-byte frames at 6 Mbps-eq / 1.5 Mbps on air). Card A receives through the IQ
+  stream (GAIN 1,4,6, THRESH 42, code 4) and iqdec decodes **143/150 with valid FCS**. tools/sdr/c2cstream.sh.
+- mt7921dbg's IQ kprobe now accepts marked packets from any card: fwdbg rewrites the shared "target" on every
+  command, and a chsw on card B had silently filtered out card A's stream.
+- X410 ports (user, 2026-10-15): TX/RX0 of radios 0 and 1 go to external antennas; RX1 is the in-room antenna.
+  capture.py / burst.py / psd.py now default to RX1. Earlier X410 captures (and the X410 frames received by the
+  cards) went through the external antenna.
+- Rig incident 2026-10-15 ~13:40: after a firmware reinstall reprobe, card B dropped off guest port 1-2 (USB 2) and
+  re-enumerated on the host at **6-1 SuperSpeed** (its original USB 3 port), with the host's mt7921u/btusb bound to
+  it. Fix, in the QEMU monitor (tmux vm23, Ctrl-a c): `device_del mtkB`, then
+  `device_add usb-host,bus=xhci.0,hostbus=6,hostport=1,id=mtkB`. Card B is now guest 2-3 at 5 Gbps, so both cards
+  can stream (~147 MB/s each).
+- Back-to-back streams (tools/guest/iqloop.sh, no rig reset between runs): the hook must re-arm the capture
+  (control 0x4f1, then GO 0x24f3), or the second run stalls with no producer advance (state 6). A detached call
+  answers in 23 ms, and the debug command keeps working between runs.
+
+### Real-time receiver and half-duplex nodes (2026-10-15 afternoon)
+- The gate now tracks DC per sample (one-pole, ~100 kHz at 40 Msps) and integrates |I-dcI|+|Q-dcQ|. First
+  differences, tried in between, attenuate a 5 MHz channel by ~10 dB at 40 Msps and missed the X410 frames.
+  Noise thresholds (128-sample means, filter 4 / digital 6), from the noise maxima x ~1.05:
+  - cbw 0: LNA 0/1/2/3 -> 40/55/75/140;
+  - cbw 4 (narrow front end, ±4 MHz ~13 dB above out-of-band): LNA 0 mean 15, max 21.5 -> 30. LNA 1 there has
+    3-6 us DC steps (p99.9 157) and false-triggers constantly.
+- rx80211's Viterbi, deinterleaver and QAM demapper are vectorized (Viterbi 28.7 -> 3.7 ms for 912 bits,
+  identical output): about 20-25 ms per 5 MHz frame, i.e. 40-50 frames/s per core. The 24 Mbps (16-QAM) self-test
+  frame fails FCS, before and after this change: open.
+- tools/guest/nbrxd.py: card setup (tune, code 4, manual gain, ICAP, MAC TX off); back-to-back stream slices;
+  incremental record parsing and per-segment decode; output to a radiotap pcap (half/quarter-rate channel flags;
+  tcpdump shows "1.5 Mb/s 2350 MHz 11g/5Mhz") and/or a TAP. X410, 300 frames: 275 delivered live with valid FCS.
+- mt7921dbg's IQ collector has two slots ("iqbind": "<slot> <phy>", rings iq0/iq1, iqstat0/1), so both cards can
+  stream at once. Before that, two readers of one ring split each other's records.
+- **Race:** chsw.py, ate.py, outband.py and fwdbg.py all write mt7921dbg's shared "target" and then a command file.
+  With two daemons running, card A's CHANNEL_SWITCH went to card B, so A's "transmissions" never reached the air at
+  2350. Every such pair now runs under tools/guest/dbglock.py (flock /tmp/fwdbg.lock).
+- **Half-duplex node:** `nbrxd.py A 2350 --cbw 4 ...` keeps the card in native narrow mode (hardware ÷4 TX), runs RX
+  slices, and between slices opens a TX window: MAC TX on, inject, wait for the airtime, MAC TX off. A frame must
+  never be queued in the packet SRAM while a slice's ring is writing it. Card A with 10-frame windows after 500 ms
+  slices: card B's daemon decoded 262 of ~300 with valid FCS. `--tap NAME --netns NS` turns the daemon into an IP
+  node: kernel frames on the TAP become OCB-style 802.11 data (addr3 = wildcard BSSID, LLC/SNAP, NOACK) and are sent
+  in the next TX window. tools/guest/nbping.sh pings between two such nodes (nsA 10.99.0.1, nsB 10.99.0.2).
+- **Half-duplex on one card is not robust (open problem).** Card B as a half-duplex node always failed: injected
+  frames never complete ("timed out waiting for pending tx"), the MCU stops answering ("Message 000500cb timeout"),
+  and the driver resets the card. This also happens with the gate shut (capture ring running, no DMA streaming),
+  so the mode-0 ring's writes over the 256 KiB packet SRAM are the cause, not the ring-0 DMA takeover. TX with the
+  receive registers set up but no capture started is still untested on B. Card A's 262-frame success was probably
+  luck in which packet-SRAM structures got hit. MT_PLE_AC_QEMPTY (0x820c0500 + 0x40 n) shows frames still queued
+  in the device (cleared bit), and tx_window now waits for all four words to read 0xffffffff.
+- **Wedged card -> guest oops.** A card whose MCU stops answering fails its reprobe ("Failed to get patch
+  semaphore"). mt7921u_mac_reset -> mt76u_resume_rx -> mt76u_submit_rx_buffers then dereferences NULL (+0xb8) in the
+  mt76 kworker; the next bind/unbind hangs in D state. Recovery: host `sudo -n usbreset 006/<dev>` for the card,
+  QEMU `system_reset` (tmux vm23, Ctrl-a c), then /root/fwre/loadstack.sh, insmod mt7921dbg, rigreset.sh.
+- **Two-node IP test** (nbping.sh): with every node half-duplex, node B decoded A's ARP requests and answered, but
+  B's replies never reached A, which is the failure above. A robust node for now = one card that only receives
+  (stream) + one card that only transmits (hardware 5 MHz). A single-card node needs a capture region that leaves
+  the datapath intact: MediaTek's mode 1 (0x88009004[27:24] = 0xf "lend", ring 0x20000..0x23ffc, read by the
+  firmware at MCU address 0x80000) is the candidate.
+- **"Deafness" was my daemon, not the radio.** It decoded synchronously between slices. The slice holding card B's
+  channel-switch calibration bursts (strong tones at DC, 5 and ~9.5 MHz) produced dozens of segments, and decoding
+  them took seconds, during which B's whole 6 s injection went by. Proof: a single 12 s slice, or slices with idle
+  gaps and no decoding, keep hearing B (85/120; ~140 busy checks per slice). Register snapshots before/after show
+  only AGC status and counters changing. Decoding now runs in a ProcessPoolExecutor (3 workers). Slices default to
+  4 s with a 50 ms read tail (~97% duty). B -> A at 10 cm: 91/120 (gain 0,4,6), 99/120 (gain 0,0,0). B's own frames
+  are ~95% clean as seen by the X410 on RX1; the rest are slice gaps and scattered failures on near-field, clipping
+  frames. X410 frames at a normal level: 153/153.
+- **Injected unicast frames are retried despite the radiotap NOACK flag.** The retries fall back to non-OFDM rates
+  (X410: 1714 ms of emission for 80 small frames; broadcast copies decode, unicast never do). The card can never hear
+  an ACK (no narrow receiver), so the node framing now always sends addr1 = broadcast, carries the real destination
+  in addr3, and nbrxd's TAP side maps it back and drops (SA, seq) retries.
+- **IP over the narrow link (tools/guest/nbudp.sh):** card B = transmit-only node (`--tx-only`, hardware ÷4,
+  TAP nbB in nsB, 10.99.0.2), card A = receive-only node (`--rx-only`, firmware IQ stream + software receiver, TAP
+  nbA in nsA, 10.99.0.1), 5 MHz at 2350 MHz. **48/60 UDP datagrams delivered** to a socket in nsA.
+  A bidirectional single-card node still needs a capture region that does not break the card's TX path (above).

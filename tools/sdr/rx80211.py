@@ -40,48 +40,52 @@ def _trellis():
 NXT, OUT = _trellis()
 
 
+# Each next state ns has two predecessors, 2(ns & 31) and 2(ns & 31) + 1, both entered with input bit ns >> 5
+_NS = np.arange(64)
+_P0 = 2 * (_NS & 31)
+_P1 = _P0 + 1
+_BIN = _NS >> 5
+_SG = 2 * OUT - 1  # expected symbol +-1 per (state, bit, output)
+_S0A, _S0B = _SG[_P0, _BIN, 0].astype(float), _SG[_P0, _BIN, 1].astype(float)
+_S1A, _S1B = _SG[_P1, _BIN, 0].astype(float), _SG[_P1, _BIN, 1].astype(float)
+
+
 def viterbi(llr, nbits):
     """llr: soft values per coded bit (positive = 1), length 2*nbits (depunctured with 0 for erasures)."""
     llr = np.asarray(llr, float).reshape(-1, 2)[:nbits]
-    INF = 1e18
-    pm = np.full(64, INF)
+    pm = np.full(64, 1e18)
     pm[0] = 0
-    prev = np.zeros((nbits, 64), int)
-    pbit = np.zeros((nbits, 64), int)
-    sgn = 2 * OUT - 1  # expected symbol +-1 per (state, bit, output)
+    dec = np.zeros((nbits, 64), bool)
     for t in range(nbits):
-        cost = -(sgn[:, :, 0] * llr[t, 0] + sgn[:, :, 1] * llr[t, 1])  # (64, 2)
-        cand = pm[:, None] + cost
-        new = np.full(64, INF)
-        for b in range(2):
-            ns = NXT[:, b]
-            c = cand[:, b]
-            better = c < new[ns]
-            # handle collisions: two states map to same next state per bit
-            order = np.argsort(c)
-            for s in order:
-                n = ns[s]
-                if c[s] < new[n]:
-                    new[n] = c[s]
-                    prev[t, n] = s
-                    pbit[t, n] = b
-        pm = new
+        l0, l1 = llr[t]
+        c0 = pm[_P0] - (_S0A * l0 + _S0B * l1)
+        c1 = pm[_P1] - (_S1A * l0 + _S1B * l1)
+        d = c1 < c0
+        dec[t] = d
+        pm = np.where(d, c1, c0)
+        pm -= pm.min()
     s = int(np.argmin(pm))
     bits = np.zeros(nbits, int)
     for t in range(nbits - 1, -1, -1):
-        bits[t] = pbit[t, s]
-        s = prev[t, s]
+        bits[t] = s >> 5
+        s = int(_P0[s] + dec[t, s])
     return bits
 
 
+_PERM = {}
+
+
 def deinterleave(vals, ncbps, nbpsc):
-    s = max(nbpsc // 2, 1)
-    out = np.zeros(ncbps)
-    for k in range(ncbps):
+    key = (ncbps, nbpsc)
+    if key not in _PERM:
+        s = max(nbpsc // 2, 1)
+        k = np.arange(ncbps)
         i = (ncbps // 16) * (k % 16) + k // 16
-        j = s * (i // s) + (i + ncbps - (16 * i) // ncbps) % s
-        out[k] = vals[j]
-    return out
+        _PERM[key] = s * (i // s) + (i + ncbps - (16 * i) // ncbps) % s
+    return np.asarray(vals)[_PERM[key]]
+
+
+_QAM = {}
 
 
 def demap(syms, nbpsc):
@@ -90,18 +94,16 @@ def demap(syms, nbpsc):
         return syms.real
     if nbpsc == 2:
         return np.stack([syms.real, syms.imag], 1).ravel()
-    lev = {4: np.array([-3, -1, 3, 1]), 6: np.array([-7, -5, -1, -3, 7, 5, 1, 3])}[nbpsc]
-    norm = {4: np.sqrt(10), 6: np.sqrt(42)}[nbpsc]
-    h = nbpsc // 2
-    out = []
-    for s in syms:
-        for comp in (s.real * norm, s.imag * norm):
-            d = np.abs(comp - lev) ** 2
-            for bit in range(h):
-                m1 = min(d[k] for k in range(len(lev)) if (k >> (h - 1 - bit)) & 1)
-                m0 = min(d[k] for k in range(len(lev)) if not (k >> (h - 1 - bit)) & 1)
-                out.append(m0 - m1)
-    return np.array(out)
+    if nbpsc not in _QAM:
+        lev = {4: np.array([-3, -1, 3, 1]), 6: np.array([-7, -5, -1, -3, 7, 5, 1, 3])}[nbpsc]
+        h = nbpsc // 2
+        ones = [np.array([(k >> (h - 1 - b)) & 1 for k in range(len(lev))], bool) for b in range(h)]
+        _QAM[nbpsc] = (lev, {4: np.sqrt(10), 6: np.sqrt(42)}[nbpsc], ones)
+    lev, norm, ones = _QAM[nbpsc]
+    comp = np.stack([syms.real, syms.imag], 1) * norm  # (n, 2)
+    d = np.abs(comp[:, :, None] - lev[None, None, :]) ** 2  # (n, 2, levels)
+    out = [d[:, :, ~m].min(2) - d[:, :, m].min(2) for m in ones]  # per bit, (n, 2)
+    return np.stack(out, 2).ravel()  # per symbol: real bits, then imaginary bits
 
 
 def depuncture(vals, rate):
@@ -155,9 +157,13 @@ def decode_at(iq, t0):
     lt = (np.fft.fft(x[:64]) + np.fft.fft(x[64:128])) / 2
     h = lt / np.where(np.abs(_ltf_freq()) > 0, _ltf_freq(), 1)
     h[np.abs(_ltf_freq()) == 0] = 1
+    # channel-state weights for the soft bits: zero-forcing alone lets the noise of subcarriers attenuated by the
+    # receive filters' edges dominate the Viterbi metric
+    w = np.abs(np.array([h[k % 64] for k in DATA_SC])) ** 2
+    w /= w.mean()
     pos = 128
     sig = ofdm_demod(x[pos:pos + 80], h, 0)
-    sb = viterbi(deinterleave(sig.real, 48, 1), 24)
+    sb = viterbi(deinterleave(sig.real * w, 48, 1), 24)
     rate_bits = int("".join(map(str, sb[:4])), 2)
     length = int("".join(map(str, sb[5:17][::-1])), 2)
     if rate_bits not in RATE_BY_BITS or sum(sb[:18]) % 2 or length == 0 or length > 4095:
@@ -173,7 +179,7 @@ def decode_at(iq, t0):
     soft = []
     for k in range(nsym):
         d = ofdm_demod(x[pos + 80 * k:pos + 80 * (k + 1)], h, k + 1)
-        soft.extend(deinterleave(demap(d, nbpsc), ncbps, nbpsc))
+        soft.extend(deinterleave(demap(d, nbpsc) * np.repeat(w, nbpsc), ncbps, nbpsc))
     coded = depuncture(np.array(soft), cr)
     bits = viterbi(coded, nsym * ndbps)
     data = descramble(bits)

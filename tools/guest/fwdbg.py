@@ -5,19 +5,31 @@
   fwdbg.py <phy> read  <addr> <nwords>
   fwdbg.py <phy> write <addr> <u32>...
   fwdbg.py <phy> call  <addr> [a0 [a1 [a2 [a3]]]]
+  fwdbg.py <phy> calld <addr> [a0 [a1 [a2 [a3]]]]  detached: the firmware answers first, then calls (for hooks that
+                                                    run long or overwrite the packet SRAM, e.g. hk_iqstream)
   fwdbg.py <phy> dump  <out.bin> <page> [page...]   4 KB per page, MCU-side bulk reads; out = pages concatenated
 Runs on the MCU, so `write` also works on ILM (0x9xxxxx), unlike debugfs regval.
 """
+import os
 import struct
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from dbglock import held  # noqa: E402
+
 D = "/sys/kernel/debug/mt7921dbg/"
-OPS = {"ping": 0, "read": 1, "write": 2, "call": 3}
+OPS = {"ping": 0, "read": 1, "write": 2, "call": 3, "calld": 4}
 MAGIC = 0x4d543739
 RXD_SZ = 0x24  # present only if the driver did not strip the MCU rxd
 
 
 def request(phy, op, addr=0, n=0, args=(), data=()):
+    # "target" and "cmd" are separate writes to state shared by every process: serialize the pair across processes
+    with held():
+        return _request(phy, op, addr, n, args, data)
+
+
+def _request(phy, op, addr, n, args, data):
     with open(D + "target", "w") as f:
         f.write(phy)
     a = list(args) + [0] * (4 - len(args))
@@ -49,8 +61,8 @@ def main():
     elif op == "write":
         st, ret, _ = request(phy, 2, v[0], len(v) - 1, data=v[1:])
         print(f"status {st} wrote {ret} words")
-    elif op == "call":
-        st, ret, _ = request(phy, 3, v[0], args=v[1:5])
+    elif op in ("call", "calld"):
+        st, ret, _ = request(phy, OPS[op], v[0], args=v[1:5])
         print(f"status {st} ret {ret:#x}")
     elif op == "dump":
         out = bytearray()

@@ -23,7 +23,7 @@ def main():
     secs = float(sys.argv[2]) if len(sys.argv) > 2 else 0.45
     rate = float(sys.argv[3]) * 1e6 if len(sys.argv) > 3 else 7.68e6
     gain = float(sys.argv[4]) if len(sys.argv) > 4 else 30
-    ant = sys.argv[5] if len(sys.argv) > 5 else "TX/RX0"
+    ant = sys.argv[5] if len(sys.argv) > 5 else "RX1"  # in-room antenna; TX/RX0 (radios 0/1) is the external one
     usrp = uhd.usrp.MultiUSRP(ARGS)
     usrp.set_rx_antenna(ant, 0)
     x = usrp.recv_num_samps(int(secs * rate), fc, rate, [0], gain)[0]

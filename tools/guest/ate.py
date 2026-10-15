@@ -11,20 +11,24 @@ import struct
 import subprocess
 import sys
 
+sys.path.insert(0, "/root/fwre")
+from dbglock import held  # noqa: E402
+
 RAW = "/sys/kernel/debug/mt7921dbg/raw"
 TEST_CTRL = 0x01 | (1 << 18)		# MCU_CE_CMD(TEST_CTRL)
 NOWAIT = 1 << 31
 
 
 def send(phy, action, p0, p1, wait):
-    with open("/sys/kernel/debug/mt7921dbg/target", "w") as f:
-        f.write(phy)
-    cmd = TEST_CTRL | (0 if wait else NOWAIT)
-    with open(RAW, "wb", buffering=0) as f:
-        f.write(struct.pack("<IB3xII", cmd, action, p0 & 0xffffffff, p1 & 0xffffffff))
-    if wait:
-        with open(RAW, "rb") as f:
-            return f.read()
+    with held():  # target + raw (+ the response read) as one step
+        with open("/sys/kernel/debug/mt7921dbg/target", "w") as f:
+            f.write(phy)
+        cmd = TEST_CTRL | (0 if wait else NOWAIT)
+        with open(RAW, "wb", buffering=0) as f:
+            f.write(struct.pack("<IB3xII", cmd, action, p0 & 0xffffffff, p1 & 0xffffffff))
+        if wait:
+            with open(RAW, "rb") as f:
+                return f.read()
     return b""
 
 

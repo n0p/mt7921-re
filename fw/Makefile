@@ -18,9 +18,10 @@ NM         := $(CROSS)nm
 PY         := python3 -I
 
 # Match the firmware ABI: NDS32 v3, reduced register set. Large code model so hooks in 0xe027xxxx can call
-# firmware code at 0x9xxxxx (out of jal range); never use $fp as gp (the firmware keeps fp == gp).
+# firmware code at 0x9xxxxx (out of jal range); never use $fp as gp or as a scratch register (the firmware keeps
+# fp == gp, and an interrupt taken inside a long-running hook would see a clobbered fp).
 CFLAGS     := -Os -march=v3 -mreduced-regs -mcmodel=large -mno-ext-fpu-sp -mno-ext-fpu-dp \
-              -fno-pic -ffreestanding -fno-builtin -fno-common -mno-fp-as-gp -Wall -Wextra -Iinclude
+              -fno-pic -ffreestanding -fno-builtin -fno-common -mno-fp-as-gp -ffixed-\$$fp -Wall -Wextra -Iinclude
 LDFLAGS    := --no-relax -T hooks.ld -L . --defsym=HOOK_BASE=$(HOOK_BASE)
 
 SRCS       := $(wildcard src/*.c)

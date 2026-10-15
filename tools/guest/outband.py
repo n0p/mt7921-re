@@ -8,6 +8,9 @@ import struct
 import subprocess
 import sys
 
+sys.path.insert(0, "/root/fwre")
+from dbglock import held  # noqa: E402
+
 RAW = "/sys/kernel/debug/mt7921dbg/raw"
 CHANNEL_SWITCH = 0xed | (0x08 << 8)	# MCU_EXT_CMD(CHANNEL_SWITCH)
 
@@ -24,10 +27,11 @@ def main():
     band = int(sys.argv[4]) if len(sys.argv) > 4 else 0
     # mt7921_mcu_set_chan_info request (76 bytes)
     req = struct.pack("<BBBBBBBBHBBIBBB57x", ch, ch, 0, 1, 1, 0, 0, 0, 0, band, 0, mhz, 0, 0, 0)
-    with open("/sys/kernel/debug/mt7921dbg/target", "w") as f:
-        f.write(phy)
-    with open(RAW, "wb", buffering=0) as f:
-        f.write(struct.pack("<I", CHANNEL_SWITCH) + req)
+    with held():  # target + raw as one step
+        with open("/sys/kernel/debug/mt7921dbg/target", "w") as f:
+            f.write(phy)
+        with open(RAW, "wb", buffering=0) as f:
+            f.write(struct.pack("<I", CHANNEL_SWITCH) + req)
     outband = call(phy, 0x0094252e, 0xe, 0)
     f184 = call(phy, 0x0083a662, 0x184, 0)
     d7c = call(phy, 0x0083a662, 0xd7c, 0)

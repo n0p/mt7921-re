@@ -18,6 +18,8 @@ enum {
 	DBG_READ = 1,	/* read n words at addr */
 	DBG_WRITE = 2,	/* write data[0..n) to addr */
 	DBG_CALL = 3,	/* ret = ((fn)addr)(arg[0..3]) */
+	DBG_CALL_DETACH = 4,	/* answer first (ret 0), then call ((fn)addr)(arg[0..3]): for calls that keep the MCU
+				 * busy for long or overwrite the packet SRAM that carries events (iqstream.c) */
 };
 
 struct dbg_req {
@@ -41,7 +43,8 @@ u32 hk_dbgcmd(struct fw_pkt *cmd)
 	struct fw_pkt *evt = fw_evt_alloc(0x0c + plen);
 	struct dbg_rsp *rsp;
 	volatile u32 *p = (volatile u32 *)req->addr;
-	u32 i;
+	u32 i, detach = 0, a[4];
+	dbg_fn fn = (dbg_fn)req->addr;
 
 	if (!evt)
 		return 0xc000009a;
@@ -70,6 +73,11 @@ u32 hk_dbgcmd(struct fw_pkt *cmd)
 	case DBG_CALL:
 		rsp->ret = ((dbg_fn)req->addr)(req->arg[0], req->arg[1], req->arg[2], req->arg[3]);
 		break;
+	case DBG_CALL_DETACH:
+		for (i = 0; i < 4; i++)
+			a[i] = req->arg[i];	/* the command buffer may be overwritten during the call */
+		detach = 1;
+		break;
 	default:
 		rsp->status = 1;
 	}
@@ -79,5 +87,7 @@ u32 hk_dbgcmd(struct fw_pkt *cmd)
 	EVT_SEQ(evt) = CMD_SEQ(cmd);
 	fw_evt_finalize(evt);
 	fw_evt_send(evt);
+	if (detach)
+		fn(a[0], a[1], a[2], a[3]);
 	return 0;
 }

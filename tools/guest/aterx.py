@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """ATE receive test helper (card in RF test state via ate.py).
 
-  aterx.py <phy> start <freq kHz> <jmode 0|1|2>   set channel + J-mode, COMMAND=STARTRX
+  aterx.py <phy> start <freq kHz> <jmode 0|1|2> [bw]   set channel + bandwidth (AT 0x47/0x48, default 0 = 20 MHz;
+                                                     the ATE default is 80 MHz) + J-mode, COMMAND=STARTRX
   aterx.py <phy> stats                             query TXOK (0x21) / RXOK (0x22) / RXERR (0x23) / RSSI (0x2e)
   aterx.py <phy> stop                              COMMAND=STOPTEST
 """
@@ -25,8 +26,11 @@ def main():
     if op == "start":
         ate.send(phy, 1, 0x01, 0, False)			# stop whatever runs
         time.sleep(0.1)
-        ate.send(phy, 5, int(sys.argv[3]), 0, False)		# channel frequency, kHz
-        ate.send(phy, 1, 0x4b, int(sys.argv[4]), False)		# J-mode
+        ate.send(phy, 5, int(sys.argv[3]), 0, False)		# channel frequency, kHz (2412000..2484000 only)
+        bw = int(sys.argv[5]) if len(sys.argv) > 5 else 0
+        ate.send(phy, 1, 0x47, bw, False)			# channel bandwidth
+        ate.send(phy, 1, 0x48, bw, False)			# data bandwidth
+        ate.send(phy, 1, 0x4b, int(sys.argv[4]), False)		# J-mode (overrides the channel bandwidth if 1/2)
         time.sleep(0.1)
         ate.send(phy, 1, 0x01, 2, False)			# COMMAND = STARTRX
         print(f"ATE RX started {sys.argv[3]} kHz jmode {sys.argv[4]}")
