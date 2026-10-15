@@ -211,6 +211,55 @@ wedged the USB DMA. With this, two cards streamed 10 Msps continuously for 25 s 
   - Card B sits on lorien's second root complex (bus 6, 0000:23:00.3). Earlier in the project it fell back to USB 2
     and dropped off the guest. The host logs no link errors when it wedges.
   - A node on a sound card/port is stable. Testing with card B on another port or host is the next step.
+
+### Card B investigation (2026-10-15/16, tools/guest/dualtrx.sh, tools/wedgestats.sh, tools/vmpause.sh)
+**Card B is not defective.** The host ports match: same AMD controller model on each die, SuperSpeed, no
+over-current, no U1/U2 LPM. Chip ID and revision are identical (0x7961 / 0x8a10).
+
+Every isolated stress passed on card B:
+
+| Stress | Result |
+|---|---|
+| Streaming alone 120 s | 9.6 GB, 0 errors |
+| Both cards streaming 120 s | clean |
+| Both cards, 545 slice starts/stops each | clean |
+| B as a half-duplex node, 476 TX-then-RX cycles | clean |
+| B receiving while A sends 2000 frames at 10 cm | 1949/2000, clean |
+| B as a half-duplex sender with 677 early stops | clean |
+| VM frozen 0.3 / 1 / 3 s (QEMU keeps the host transfers going) | no effect |
+| A re-tuning 10 times next to B (calibration bursts) | no effect |
+| Two-node 120 s UDP soaks with the current code | 2 of 2 clean (delivery 38–59%) |
+
+**Where it does fail: two patterns.**
+1. **The first slice after a firmware reload (rigreset).** The card's USB control path dies right after the slice
+   starts (the first iq_stat poll fails), or during the setup's MCU commands. It hit card B twice and card A once.
+2. **A cascade between cards.** When one card wedges, the driver's USB reset of it stalls QEMU's USB service, and the
+   other card fails seconds later. Seen A→B and B→A.
+   - Once, B's hook was stranded instead: state 1 forever, ring 0 still borrowed, its DMA index reset underneath and
+     the MCU WFDMA global config rewritten by B's own firmware recovery.
+   - A one-card-per-host node would not see this pattern.
+
+**Pattern 1 is still unexplained. A tested hypothesis that failed:**
+- **Hypothesis:** hk_iqstream's global TX-DMA disable/enable around the ring-0 takeover aborted a firmware event in
+  flight.
+- **Fix tried (build f2cdc060…):** settle first, no global toggle. It **broke streaming**: without the TX_EN cycle the
+  engine never picks up ring 0's new base. The first descriptor hung (state 7), and the following starts returned
+  IQ_BUSY. The toggle is required. It is reverted; the installed build is ac2b34a5… again.
+- **Nothing else uses this engine.** The other MCU TX rings are idle (TX2) or unconfigured (TX1, TX3); the firmware's
+  command rings are RX1/RX3. So there is no third-party transfer to abort.
+
+**Stuck-busy MCU DMA (found on the way).**
+- An aborted ring-0 transfer can leave the MCU WFDMA TX engine "busy": GLO_CFG 0x54000208 bit 1, read-only, with
+  every ring idle.
+- USB resets, VM resets and the driver's WF-subsystem reset do not clear it, and every later stream start returns
+  IQ_BUSY.
+- A logic reset of the block (0x54000100 [5:4] low, then high) clears it. It also wipes the firmware's ring setup,
+  and a firmware reload rebuilds that. tools/rigrecover.sh now does both when it finds the bit set.
+
+**Baseline wedge rate (tools/wedgestats.sh, 12 two-card dualtrx runs of 60 s, build ac2b34a5):**
+- 6 runs had vendor timeouts: card B 5, card A 1.
+- 3 of the 6 came at the second card's first slice, 3 mid-run or at the end.
+- A 30 s settle after the firmware reload made no difference (3 of 6 either way).
 - **Recovery, in order:**
   1. `sudo -n usbreset 002/<dev>` and `006/<dev>` on lorien (both cards: a VM reset alone does not recover a wedged
      card);

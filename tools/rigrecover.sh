@@ -12,6 +12,15 @@ sleep 20
 i=0
 until $G true 2>/dev/null; do i=$((i + 1)); [ $i -gt 30 ] && { echo "guest did not come back"; exit 1; }; sleep 5; done
 $G 'setsid nohup sh -c "dmesg -wT > /root/dmesg_boot_$(date +%H%M).log" > /dev/null 2>&1 < /dev/null &
-cd /root/fwre && ./loadstack.sh > /dev/null 2>&1; insmod mt7921dbg/mt7921dbg.ko; ./rigreset.sh | tail -1
+cd /root/fwre && ./loadstack.sh > /dev/null 2>&1; insmod mt7921dbg/mt7921dbg.ko
+# An IQ stream aborted mid-transfer (hk_iqstream teardown under a stalled host) leaves the MCU WFDMA TX engine "busy"
+# (GLO_CFG 0x54000208 bit 1, read-only) with every ring idle; USB and WF-subsystem resets do not clear it, and every
+# later stream start returns IQ_BUSY. A logic reset of that DMA block (0x54000100 [5:4] low, then high) does; it also
+# wipes the firmware ring setup, which the firmware reload in rigreset.sh rebuilds.
+for i in wlx00c0cab7962a wlx00c0cab79628; do P=$(cat /sys/class/net/$i/phy80211/name); D=/sys/kernel/debug/ieee80211/$P/mt76
+	echo 0x54000208 > $D/regidx; g=$(timeout 5 cat $D/regval)
+	if [ $(( g & 2 )) -ne 0 ]; then echo "$i: MCU WFDMA stuck busy ($g): logic reset"; echo 0x54000100 > $D/regidx; echo 0 > $D/regval; echo 0x30 > $D/regval; fi
+done
+./rigreset.sh | tail -1
 for i in wlx00c0cab7962a wlx00c0cab79628; do P=$(cat /sys/class/net/$i/phy80211/name); D=/sys/kernel/debug/ieee80211/$P/mt76
 	echo 0x820e3000 > $D/regidx; echo "$i $P alive: $(timeout 5 cat $D/regval)"; done'
