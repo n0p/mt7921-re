@@ -418,3 +418,63 @@
   TAP nbB in nsB, 10.99.0.2), card A = receive-only node (`--rx-only`, firmware IQ stream + software receiver, TAP
   nbA in nsA, 10.99.0.1), 5 MHz at 2350 MHz. **48/60 UDP datagrams delivered** to a socket in nsA.
   A bidirectional single-card node still needs a capture region that does not break the card's TX path (above).
+
+## 2026-10-15 evening: single-card TRX enablers (goal: narrowband TRX node, sustainable RX loop)
+- **Packet pool with a dedicated ICAP partition (fw/asm/icap_pool_layout.S, default build).** The stock normal-mode
+  layout puts the PLE (320 x 64 B) at 0xe0200000 and the PSE (3424 x 128 B) at 0xe0205000..0xe026ffff, so the mode-0
+  ring overwrote the whole PLE plus most of the PSE (notes/08). A one-instruction patch (0x0094bb66 `beqz38 s1` ->
+  `movi55 s1, 2`) makes the normal boot use MediaTek's own ICAP-mode layout:
+  - ICAP 128 banks at 0xe0200000..0xe023ffff;
+  - PLE PBUF_CTRL 0x01000140 (0xe0240000);
+  - PSE 0x01140360 (0xe0245000).
+
+  Verified on both cards. Normal monitor RX and injection TX work with the smaller PSE: 200/200 card-to-card plus
+  3045 ambient frames on channel 6.
+- **Protocol: no MCU commands while a slice runs.** Command and event packets live in packet SRAM, and in the old
+  layout the ring overwrote them, causing "Message 000500cb timeout", driver resets, and the mt76u NULL-deref
+  oops on reset.
+  - nbrxd polls slice completion through the host register path: iq_stat via mt76 debugfs regidx/regval, i.e. USB
+    vendor requests, which need no MCU. It ends a slice early by writing iq_cfg.stop the same way.
+  - hk_iqstream waits settle_us (3 ms) *before* arming the capture, so the detached call's response event leaves
+    first.
+  - An earlier txsurvive "mode 0 kills TX (0/30)" was an artifact: a non-detached capture call overwrote its own
+    response event, fwdbg exited, and nothing was transmitted. With detached calls, TX survives mode-0 captures
+    (22/30) and mode-1 captures (21/30).
+- **Mode 1 is non-destructive but not streamable.** Its samples land in granted SYSRAM at MCU 0x00080000 (notes/08);
+  0xe0280000 never changes.
+- **Capture rate floor is 40 Msps.** Measured with hk_icaprate (MCU-timed producer advance, unaliased 20/50/100 us
+  windows):
+  - domain 4 (BirriaSDR): divider 3/2 = 40/80 Msps;
+  - domain 1 (MODE 0x14): 80 Mwords/s (two chains);
+  - domain 2 (MODE 0x20/0x21, upstream 0x830a1004[7:0] = 1/2/0x12): ~273 Mwords/s for every rate code and SEL;
+  - 0x81026004[7:2] (the firmware's capture-clock field): no effect.
+
+  The MCU reads 0xe02xxxxx SRAM at only 3.5 Mwords/s (DLM 21 M; fw hk_bench), so it cannot decimate either. Narrowing
+  in hardware is not possible; the gate keeps the loop sustainable for bursty traffic (256 KiB ring = 20 ms of
+  continuous activity at the 13 MB/s deficit).
+- **Packet SRAM usage map (tools: sramsnap.py):** under traffic the PSE touched all 2048 pages of the old layout:
+  no free corner existed.
+- **Half-duplex on one card works.** Card B (cbw 4) alternated 500 ms streaming RX slices with 10-frame TX windows
+  for 22 cycles with no command timeouts. The X410 (RX1) decoded B's frames in every window at a constant +44-46 dB,
+  the same level as plain injection. Card A heard all windows when its decode had enough SNR (gain 0,0,0 at 10 cm is
+  marginal; results vary run to run).
+
+## 2026-10-15 late: continuous 10 Msps capture, real-time node, 2.5 MHz TX (details: notes/09)
+- **Correction: the capture can be narrowed in hardware.** The capture rate is still 40 Msps, but the ICAP input
+  packer (CR10 0x800210b8 [19:16]) decimates:
+  - 2 = uniform 10 Msps (80 MB/s; take each beat's data half: tools/sdr/iqrec.py `sample_words`);
+  - 8 = 30 Msps (120 MB/s).
+
+  Both stream continuously with 0 overruns and decode X410 5 MHz frames as well as the gated 40 Msps stream (98/98
+  each). They need native cbw 4 (front end band-limited to ±5 MHz).
+- **nbrxd `--pack 2`** is an ungated, real-time receiver: 1.2 core-seconds per second on the guest, after the C
+  Viterbi and the SNR / CW-spur gates.
+  - A two-node bidirectional UDP link at 2350 MHz: 81% / 74% delivered at ~5 frames/s each way, median latency 0.2 s.
+  - `--pack 8 --width 10` receives 802.11p 10 MHz frames continuously: 296/300 X410 frames.
+  - 16/64-QAM decoding was broken in rx80211 (IFFT gain left in the equaliser reference); it is fixed.
+- **÷8 TX ([30:28] = 7) is a valid 2.5 MHz OFDM PPDU minus its last 3 symbols, and the MAC retries it ~11-15×.**
+  - Software framing (inner CRC + padding) plus mt7921dbg `tx_count=1` make it usable one-way: 49/50.
+  - In TRX mode it is unreliable: the manual-gain forces can turn it into a bare carrier, and USB wedges interfere.
+- **The rig VM is now 12 vCPU / 8 GB, with one emulated xHCI per card and pinned IRQs** (lorien `~/vm23.sh`).
+  - Card USB wedges remain the main reliability problem.
+  - Recovery: usbreset both cards on lorien, then system_reset, loadstack, insmod, rigreset.

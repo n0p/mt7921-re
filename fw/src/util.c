@@ -39,3 +39,22 @@ u32 hk_icaprate(u32 us, u32 start, u32 stop, u32 settle)
 	*ctl = stop;
 	return (v1 - v0) & 0xffff;
 }
+
+/* MCU memory throughput: n words read from src with a stride (in words), summed (dst 0) or copied to dst contiguously.
+ * Returns elapsed microseconds; the sum lands in bench_sink so the reads cannot be optimized away. */
+u32 bench_sink;
+
+u32 hk_bench(u32 src, u32 n, u32 stride, u32 dst)
+{
+	volatile u32 *s = (volatile u32 *)src, *d = (volatile u32 *)dst, *t = (volatile u32 *)MCU_US_TIMER;
+	u32 t0 = *t, i, acc = 0;
+
+	if (dst)
+		for (i = 0; i < n; i++)
+			d[i] = s[i * stride];
+	else
+		for (i = 0; i < n; i++)
+			acc += s[i * stride];
+	bench_sink = acc;
+	return *t - t0;
+}

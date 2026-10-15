@@ -14,10 +14,27 @@ import numpy as np
 
 REC = 0x52514951
 FS = 40e6
+# ICAP packer (0x800210b8[19:16], tools/guest/icap.py ICAP_PACK) -> (sample rate, ring words per 4-word beat that hold
+# samples), measured 2026-10-15 with an X410 tone (native cbw 4, tap 4, which is 20 Msps held x2 at 40 Msps):
+# 0 = 40 Msps dense; 2 = uniform 10 Msps, one sample pair per beat; 8 = 30 Msps dense (the 20 Msps samples re-timed by
+# repetition, images at +-10 MHz, -23 dB)
+PACKS = {0: (40e6, 4), 2: (10e6, 2), 8: (30e6, 4)}
 
 
-def words_to_iq(w):
+def sample_words(w, pack=0):
+    """Ring words (beat-aligned) -> one word per sample, in time order."""
     w = np.asarray(w, dtype=np.uint32)
+    if pack == 2:
+        # The pair normally sits in words 0-1 with 2-3 zero, but runs of beats (~2% of them) carry it in words 2-3, and
+        # the beat where it moves holds the same pair in both halves. Take the half with data, once per beat.
+        b = w[:len(w) // 4 * 4].reshape(-1, 2, 2)
+        hi = (b[:, 1] != 0).any(1) & ~(b[:, 0] != 0).any(1)
+        w = b[np.arange(len(b)), hi.astype(np.intp)].ravel()
+    return w
+
+
+def words_to_iq(w, pack=0):
+    w = sample_words(w, pack)
     q = (w & 0x3fff).astype(np.int32)
     q -= (q & 0x2000) << 1
     i = ((w >> 16) & 0x3fff).astype(np.int32)
@@ -38,17 +55,17 @@ def records(path):
         off += 16 + n
 
 
-def segments(path):
+def segments(path, pack=0):
     segs, cur_pos, cur = [], None, []
     for _, pos, w in records(path):
         if cur and (pos - cur_pos - sum(len(c) for c in cur)) % 2**32 != 0:
-            segs.append((cur_pos, words_to_iq(np.concatenate(cur))))
+            segs.append((cur_pos, words_to_iq(np.concatenate(cur), pack)))
             cur = []
         if not cur:
             cur_pos = pos
         cur.append(w)
     if cur:
-        segs.append((cur_pos, words_to_iq(np.concatenate(cur))))
+        segs.append((cur_pos, words_to_iq(np.concatenate(cur), pack)))
     return segs
 
 

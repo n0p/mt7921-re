@@ -21,7 +21,9 @@ def _ltf_freq():
     global LTF_FREQ
     if LTF_FREQ is None:
         p = preamble()
-        LTF_FREQ = np.fft.fft(p[192:256])
+        # unit (+-1) subcarriers: the transmitter's IFFT gain 64/sqrt(52) would otherwise remain in every equalised
+        # data symbol and break the QAM level decisions (BPSK/QPSK only use the sign)
+        LTF_FREQ = np.fft.fft(p[192:256]) * np.sqrt(52) / 64
     return LTF_FREQ
 
 
@@ -50,8 +52,44 @@ _S0A, _S0B = _SG[_P0, _BIN, 0].astype(float), _SG[_P0, _BIN, 1].astype(float)
 _S1A, _S1B = _SG[_P1, _BIN, 0].astype(float), _SG[_P1, _BIN, 1].astype(float)
 
 
+_CVIT = None
+
+
+def _cviterbi():
+    """vit.c through ctypes, compiled once per source version into the temp dir; None if no C compiler."""
+    global _CVIT
+    if _CVIT is None:
+        _CVIT = False
+        try:
+            import ctypes
+            import os
+            import subprocess
+            import tempfile
+            src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vit.c")
+            so = os.path.join(tempfile.gettempdir(), f"rx80211_vit_{os.getuid()}_{int(os.path.getmtime(src))}.so")
+            if not os.path.exists(so):
+                tmp = f"{so}.{os.getpid()}"
+                subprocess.run(["cc", "-O2", "-shared", "-fPIC", "-o", tmp, src], check=True, capture_output=True)
+                os.replace(tmp, so)
+            f = ctypes.CDLL(so).viterbi
+            f.restype = ctypes.c_int
+            f.argtypes = [ctypes.c_void_p, ctypes.c_int] + [ctypes.c_void_p] * 5
+            tabs = [np.ascontiguousarray(t, np.int8) for t in (_S0A, _S0B, _S1A, _S1B)]
+            _CVIT = (f, tabs)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return _CVIT or None
+
+
 def viterbi(llr, nbits):
     """llr: soft values per coded bit (positive = 1), length 2*nbits (depunctured with 0 for erasures)."""
+    c = _cviterbi()
+    if c:
+        f, tabs = c
+        v = np.ascontiguousarray(np.asarray(llr, float).ravel()[:2 * nbits])
+        out = np.zeros(nbits, np.uint8)
+        if len(v) == 2 * nbits and f(v.ctypes.data, nbits, *(t.ctypes.data for t in tabs), out.ctypes.data) == 0:
+            return out.astype(int)
     llr = np.asarray(llr, float).reshape(-1, 2)[:nbits]
     pm = np.full(64, 1e18)
     pm[0] = 0
@@ -75,14 +113,19 @@ def viterbi(llr, nbits):
 _PERM = {}
 
 
-def deinterleave(vals, ncbps, nbpsc):
+def _perm(ncbps, nbpsc):
+    """Interleaved position of each coded bit of one OFDM symbol."""
     key = (ncbps, nbpsc)
     if key not in _PERM:
         s = max(nbpsc // 2, 1)
         k = np.arange(ncbps)
         i = (ncbps // 16) * (k % 16) + k // 16
         _PERM[key] = s * (i // s) + (i + ncbps - (16 * i) // ncbps) % s
-    return np.asarray(vals)[_PERM[key]]
+    return _PERM[key]
+
+
+def deinterleave(vals, ncbps, nbpsc):
+    return np.asarray(vals)[_perm(ncbps, nbpsc)]
 
 
 _QAM = {}
@@ -126,35 +169,57 @@ def depuncture(vals, rate):
 def descramble(bits):
     """x^7+x^4+1: the first 7 received SERVICE bits are the scrambler sequence itself (data bits are 0),
     and the sequence obeys s[n] = s[n-4] ^ s[n-7]."""
+    bits = np.asarray(bits, dtype=np.int64)
     seq = [int(b) for b in bits[:7]]
-    while len(seq) < len(bits):
+    while len(seq) < 127 + 7:  # the sequence repeats every 127 bits
         seq.append(seq[-4] ^ seq[-7])
-    return np.array([int(b) ^ s for b, s in zip(bits, seq)])
+    return bits ^ np.resize(np.array(seq[:127], dtype=np.int64), len(bits))
 
 
-def ofdm_demod(sym80, h, idx):
-    f = np.fft.fft(sym80[16:80]) / h
-    pil = np.array([f[k % 64] for k in PILOT_SC]) * (PILOT_BASE * POLARITY[idx % 127])
-    ph = np.angle(pil.sum())
-    data = np.array([f[k % 64] for k in DATA_SC]) * np.exp(-1j * ph)
-    return data
+_PIL = np.array([k % 64 for k in PILOT_SC])
+_DAT = np.array([k % 64 for k in DATA_SC])
+_POL = np.asarray(POLARITY)
 
 
-def decode_at(iq, t0):
-    """t0 = index of the first LTF symbol (after the 32-sample LTF CP)."""
+def ofdm_demod(syms80, h, idx):
+    """syms80: (n, 80) OFDM symbols (or one of 80 samples) with symbol indices idx.. idx+n-1 -> (n, 48) data
+    subcarriers, equalised and corrected for the common phase error of the pilots."""
+    syms80 = np.asarray(syms80).reshape(-1, 80)
+    f = np.fft.fft(syms80[:, 16:80], axis=1) / h
+    pol = _POL[(idx + np.arange(len(f))) % 127]
+    pil = (f[:, _PIL] * (np.asarray(PILOT_BASE)[None, :] * pol[:, None])).sum(1)
+    return f[:, _DAT] * np.exp(-1j * np.angle(pil))[:, None]
+
+
+def decode_at(iq, t0, min_snr=None, max_len=4095):
+    """t0 = index of the first LTF symbol (after the 32-sample LTF CP). min_snr (dB): give up before the SIGNAL
+    decode when the LTF says the candidate is noise; max_len: largest PSDU worth decoding."""
     if t0 + 128 + 80 > len(iq) or t0 < 32 + 144:
         return None
     # coarse CFO from the STF (lag 16, range +-1/32 cycle per sample), then fine CFO from the two LTF symbols
     # (lag 64, range +-1/128): the LTF alone aliases offsets beyond +-39 kHz at 5 MHz channel width
+    def derotate(a, b, f):  # iq[t0 + a:t0 + b] with the offset f (cycles/sample) removed, phase 0 at t0
+        k = np.arange(a, b)
+        return iq[t0 + a:t0 + b] * np.exp(-2j * np.pi * f * k)
+
     stf = iq[t0 - 32 - 144:t0 - 32]
     coarse = np.angle(np.vdot(stf[:-16], stf[16:])) / (2 * np.pi * 16)
-    n = np.arange(len(iq) - t0 + 32)
-    y = iq[t0 - 32:] * np.exp(-2j * np.pi * coarse * (n - 32))
-    l1, l2 = y[32:96], y[96:160]
-    cfo = coarse + np.angle(np.vdot(l1, l2)) / (2 * np.pi * 64)
-    x = iq[t0 - 32:] * np.exp(-2j * np.pi * cfo * (n - 32))
-    x = x[32:]
-    lt = (np.fft.fft(x[:64]) + np.fft.fft(x[64:128])) / 2
+    y = derotate(0, 128, coarse)
+    cfo = coarse + np.angle(np.vdot(y[:64], y[64:])) / (2 * np.pi * 64)
+    x = derotate(0, 208, cfo)  # both LTF symbols and SIGNAL
+    f1, f2 = np.fft.fft(x[:64]), np.fft.fft(x[64:128])
+    lt = (f1 + f2) / 2
+    # SNR from the two LTF symbols on the occupied subcarriers: |f1+f2|^2/4 = S + N/2, |f1-f2|^2/4 = N/2
+    occ = np.abs(_ltf_freq()) > 0
+    ps, pd = np.mean(np.abs(lt[occ]) ** 2), np.mean(np.abs(f1[occ] - f2[occ]) ** 2) / 4
+    snr = 10 * np.log10(max(ps - pd, 1e-12) / max(2 * pd, 1e-12))
+    if min_snr is not None and snr < min_snr:
+        return None
+    # A CW spur autocorrelates like an STF at any lag and repeats exactly across the LTF (so its "SNR" is high), but
+    # it fills one or two of the 52 subcarriers; a real LTF spreads its energy over all of them.
+    e = np.abs(lt[occ]) ** 2
+    if e.max() > 0.25 * e.sum():
+        return None
     h = lt / np.where(np.abs(_ltf_freq()) > 0, _ltf_freq(), 1)
     h[np.abs(_ltf_freq()) == 0] = 1
     # channel-state weights for the soft bits: zero-forcing alone lets the noise of subcarriers attenuated by the
@@ -162,59 +227,68 @@ def decode_at(iq, t0):
     w = np.abs(np.array([h[k % 64] for k in DATA_SC])) ** 2
     w /= w.mean()
     pos = 128
-    sig = ofdm_demod(x[pos:pos + 80], h, 0)
+    sig = ofdm_demod(x[pos:pos + 80], h, 0)[0]
     sb = viterbi(deinterleave(sig.real * w, 48, 1), 24)
     rate_bits = int("".join(map(str, sb[:4])), 2)
     length = int("".join(map(str, sb[5:17][::-1])), 2)
-    if rate_bits not in RATE_BY_BITS or sum(sb[:18]) % 2 or length == 0 or length > 4095:
+    if rate_bits not in RATE_BY_BITS or sum(sb[:18]) % 2 or length == 0 or length > max_len:
         return None
     rate = RATE_BY_BITS[rate_bits]
     _, nbpsc, cr = RATES[rate]
     ncbps = 48 * nbpsc
     ndbps = ncbps * cr[0] // cr[1]
     nsym = -(-(16 + 8 * length + 6) // ndbps)
-    pos += 80
-    if pos + 80 * nsym > len(x):
+    if t0 + 208 + 80 * nsym > len(iq):
         return None
-    soft = []
-    for k in range(nsym):
-        d = ofdm_demod(x[pos + 80 * k:pos + 80 * (k + 1)], h, k + 1)
-        soft.extend(deinterleave(demap(d, nbpsc) * np.repeat(w, nbpsc), ncbps, nbpsc))
-    coded = depuncture(np.array(soft), cr)
+    d = ofdm_demod(derotate(208, 208 + 80 * nsym, cfo), h, 1)
+    soft = demap(d.ravel(), nbpsc).reshape(nsym, ncbps) * np.repeat(w, nbpsc)[None, :]
+    coded = depuncture(soft[:, _perm(ncbps, nbpsc)].ravel(), cr)
     bits = viterbi(coded, nsym * ndbps)
     data = descramble(bits)
     psdu = np.packbits(data[16:16 + 8 * length].reshape(-1, 8)[:, ::-1], axis=1).ravel().tobytes()
     ok = len(psdu) >= 4 and struct.unpack("<I", psdu[-4:])[0] == zlib.crc32(psdu[:-4])
-    return dict(rate=rate, length=length, fcs_ok=ok, mpdu=psdu, cfo=cfo)
+    return dict(rate=rate, length=length, fcs_ok=ok, mpdu=psdu, cfo=cfo, snr=snr)
 
 
-def decode_all(iq, max_frames=50):
+def _movsum(v, n):
+    """np.convolve(v, np.ones(n), "valid") in O(len(v))."""
+    cs = np.cumsum(v, dtype=np.complex128 if np.iscomplexobj(v) else np.float64)
+    out = cs[n - 1:].copy()
+    out[1:] -= cs[:-n]
+    return out
+
+
+def decode_all(iq, max_frames=50, min_snr=None, max_len=4095):
     iq = np.asarray(iq, np.complex64)
+    if len(iq) < 64:
+        return []
     # STF detection: autocorrelation at lag 16 over a 48-sample window
     a = iq[16:] * np.conj(iq[:-16])
-    c = np.convolve(a, np.ones(48), "valid")
-    p = np.convolve(np.abs(iq[16:]) ** 2, np.ones(48), "valid")
+    c = _movsum(a, 48)
+    p = _movsum(np.abs(iq[16:]) ** 2, 48)
     m = np.abs(c) / (p + 1e-9)
     res, i = [], 0
     ltf_t = preamble()[192:256]
-    while i < len(m) and len(res) < max_frames:
-        if m[i] > 0.85:
-            # find LTF by cross-correlation in a window after the STF start
-            w0, w1 = i + 100, min(len(iq) - 64, i + 260)
-            if w1 <= w0:
-                break
-            xc = np.abs(np.correlate(iq[w0:w1 + 64], ltf_t, "valid"))
-            k = w0 + int(np.argmax(xc))
-            # the strongest peak can be either LTF symbol: try both alignments
-            r = decode_at(iq, k) or decode_at(iq, k - 64)
-            if r:
-                r["start"] = i
-                res.append(r)
-                i += 400 + 80 * 4
-                continue
-            i += 160
-        else:
-            i += 1
+    cand = np.flatnonzero(m > 0.85)  # STF candidates; jump between them instead of walking every sample
+    while len(res) < max_frames:
+        k = np.searchsorted(cand, i)
+        if k >= len(cand):
+            break
+        i = int(cand[k])
+        # find LTF by cross-correlation in a window after the STF start
+        w0, w1 = i + 100, min(len(iq) - 64, i + 260)
+        if w1 <= w0:
+            break
+        xc = np.abs(np.correlate(iq[w0:w1 + 64], ltf_t, "valid"))
+        k = w0 + int(np.argmax(xc))
+        # the strongest peak can be either LTF symbol: try both alignments
+        r = decode_at(iq, k, min_snr, max_len) or decode_at(iq, k - 64, min_snr, max_len)
+        if r:
+            r["start"] = i
+            res.append(r)
+            i += 400 + 80 * 4
+            continue
+        i += 160
     return res
 
 

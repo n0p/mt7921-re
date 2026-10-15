@@ -31,6 +31,11 @@
  *                                        Q [13:0], I [29:16], 14-bit two's complement). Reads consume the ring
  *   /sys/kernel/debug/mt7921dbg/iqstat0, iqstat1  packets, bytes, sequence gaps, ring-full drops, last sequence
  *                                        number; write anything to empty the ring and reset the counters
+ *
+ * Module parameter tx_count (writable at runtime, default 0 = mt76's own value): transmission attempts written into
+ * the TXD (DW3 REM_TX_COUNT) of every injected frame, through a kretprobe on mt76_connac2_mac_write_txwi. mt76 always
+ * asks for 15; the ÷8 (2.5 MHz) transmitter ends every PPDU 3 symbols early, the MAC takes that as a failure and
+ * sends each frame ~11-15 times, so narrow-band nodes set 1.
  */
 #include <linux/module.h>
 #include <linux/debugfs.h>
@@ -41,6 +46,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/kprobes.h>
+#include <net/mac80211.h>
 #include <linux/bitfield.h>
 #include <linux/unaligned.h>
 #include <linux/vmalloc.h>
@@ -107,6 +113,48 @@ static int rxbw_pre(struct kprobe *p, struct pt_regs *regs)
 static struct kprobe rxbw_kp = {
 	.symbol_name = "mt76_connac2_mac_fill_rx_rate",
 	.pre_handler = rxbw_pre,
+};
+
+static unsigned int tx_count;
+module_param(tx_count, uint, 0644);
+MODULE_PARM_DESC(tx_count, "TXD transmission attempts of injected frames (1-31; 0 = leave mt76's 15)");
+#define MT_TXD3_REM_TX_COUNT	GENMASK(15, 11)
+static bool txc_registered;
+
+struct txc_data {
+	__le32 *txwi;
+	struct sk_buff *skb;
+};
+
+/* mt76_connac2_mac_write_txwi(dev, txwi, skb, wcid, key, pid, qid, changed): txwi in rsi, skb in rdx. */
+static int txc_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct txc_data *d = (struct txc_data *)ri->data;
+
+	d->txwi = (__le32 *)regs->si;
+	d->skb = (struct sk_buff *)regs->dx;
+	return 0;
+}
+
+static int txc_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct txc_data *d = (struct txc_data *)ri->data;
+	unsigned int n = READ_ONCE(tx_count);
+	u32 v;
+
+	if (!n || !d->txwi || !d->skb || !(IEEE80211_SKB_CB(d->skb)->flags & IEEE80211_TX_CTL_INJECTED))
+		return 0;
+	v = le32_to_cpu(d->txwi[3]) & ~MT_TXD3_REM_TX_COUNT;
+	d->txwi[3] = cpu_to_le32(v | FIELD_PREP(MT_TXD3_REM_TX_COUNT, min(n, 31u)));
+	return 0;
+}
+
+static struct kretprobe txc_krp = {
+	.kp.symbol_name = "mt76_connac2_mac_write_txwi",
+	.entry_handler = txc_entry,
+	.handler = txc_ret,
+	.data_size = sizeof(struct txc_data),
+	.maxactive = 16,
 };
 
 /* mt76_dev of a phy, through the i_private of its mt76 debugfs "regval" file. */
@@ -567,6 +615,10 @@ static int __init mt7921dbg_init(void)
 		pr_warn("mt7921dbg: kprobe on mt76_connac2_mac_fill_rx_rate failed, rxbw disabled\n");
 	else
 		rxbw_registered = true;
+	if (register_kretprobe(&txc_krp))
+		pr_warn("mt7921dbg: kretprobe on mt76_connac2_mac_write_txwi failed, tx_count has no effect\n");
+	else
+		txc_registered = true;
 	return 0;
 }
 
@@ -576,6 +628,8 @@ static void __exit mt7921dbg_exit(void)
 
 	if (rxbw_registered)
 		unregister_kprobe(&rxbw_kp);
+	if (txc_registered)
+		unregister_kretprobe(&txc_krp);
 	if (iq_registered)
 		unregister_kprobe(&iq_kp);
 	debugfs_remove_recursive(dbg_dir);

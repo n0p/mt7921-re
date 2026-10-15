@@ -1,7 +1,9 @@
 # Tuning MT7961 to 2300–2400 MHz (13 cm amateur band): static analysis and patch
 
 Firmware: WIFI_RAM_CODE_MT7961_1 build 20260224110949 (live addresses) and the boot ROM dump (work/rom/).
-This was done offline only and has **not been tested on hardware yet**.
+This was done offline only and has **not been tested on hardware yet**. *Update 2026-10-15: verified on hardware.*
+*Every narrowband test since runs at 2350 MHz through this override: RF 0x184 reads back 2350.000 MHz, and the*
+*X410 receives the cards there (notes/03, 09).*
 
 ## Summary
 - The firmware already has a **frequency override**: CHANNEL_SWITCH's `outband_freq` (MHz) replaces the

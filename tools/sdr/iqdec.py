@@ -4,7 +4,7 @@
 Each contiguous segment of the 40 Msps stream is resampled to W Msps (the 20 Msps-equivalent rate of a W MHz OFDM
 channel, so 5 for a 5 MHz channel, 10 for 802.11p) and fed to the rx80211 802.11a/p receiver.
 
-Usage: iqdec.py <records.bin> [width MHz, default 5] [offset MHz, default 0]
+Usage: iqdec.py <records.bin> [width MHz, default 5] [offset MHz, default 0] [ICAP packer, default 0]
   offset: channel centre relative to the card's LO (the capture spans +-20 MHz)
 Prints one line per decoded frame (segment time, rate, length, FCS, SA, payload start) and a summary.
 """
@@ -18,15 +18,16 @@ import iqrec
 import rx80211
 
 
-def decode(path, width=5.0, offset=0.0, verbose=True):
-    segs = iqrec.segments(path)
-    fr = Fraction(width / (iqrec.FS / 1e6)).limit_denominator(1000)
+def decode(path, width=5.0, offset=0.0, verbose=True, pack=0):
+    segs = iqrec.segments(path, pack)
+    fs = iqrec.PACKS[pack][0]
+    fr = Fraction(width / (fs / 1e6)).limit_denominator(1000)
     t0 = segs[0][0] if segs else 0
     out = []
     for pos, x in segs:
         x = x.astype(np.complex64)
         if offset:
-            x = x * np.exp(-2j * np.pi * offset * 1e6 / iqrec.FS * np.arange(len(x))).astype(np.complex64)
+            x = x * np.exp(-2j * np.pi * offset * 1e6 / fs * np.arange(len(x))).astype(np.complex64)
         y = resample_poly(x - x.mean(), fr.numerator, fr.denominator).astype(np.complex64)
         if len(y) < 400:
             continue
@@ -35,7 +36,7 @@ def decode(path, width=5.0, offset=0.0, verbose=True):
         # leaves the DC subcarrier empty and the first subcarrier is 78 kHz away even at 5 MHz.
         y = lfilter([1, -1], [1, -(1 - 2 * np.pi * 20e3 / (width * 1e6))], y).astype(np.complex64)
         for r in rx80211.decode_all(y, 200):
-            t = ((pos - t0) % 2**32) / iqrec.FS + r["start"] / (width * 1e6)
+            t = ((pos - t0) % 2**32) / (fs * 4 / iqrec.PACKS[pack][1]) + r["start"] / (width * 1e6)
             r["t"] = t
             out.append(r)
             if verbose:
@@ -48,9 +49,10 @@ def decode(path, width=5.0, offset=0.0, verbose=True):
 def main():
     width = float(sys.argv[2]) if len(sys.argv) > 2 else 5.0
     offset = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
-    segs, res = decode(sys.argv[1], width, offset)
+    pack = int(sys.argv[4]) if len(sys.argv) > 4 else 0
+    segs, res = decode(sys.argv[1], width, offset, pack=pack)
     ok = [r for r in res if r["fcs_ok"]]
-    span = sum(len(x) for _, x in segs) / iqrec.FS
+    span = sum(len(x) for _, x in segs) / iqrec.PACKS[pack][0]
     print(f"{len(segs)} segments ({span * 1e3:.1f} ms of samples); {len(res)} frames decoded at {width} MHz, "
           f"{len(ok)} with good FCS")
 

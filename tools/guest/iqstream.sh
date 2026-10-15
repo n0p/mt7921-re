@@ -11,7 +11,7 @@
 #   SETTLE (us, 200), TMO (stall timeout us, 200000), NORESET=1 (skip the final rig reset), DUR (seconds to wait
 #   before reading the stats; default from npkt), GAIN=lna,lpf,dig (manual gain, BirriaSDR's recipe: LNA 0-3,
 #   filter 0-8, digital 0-12; without it the AGC hunts between gain states on noise and the energy gate is useless),
-#   DURMS (stream wall-clock limit, ms; 2000), X="reg=val ..." (extra register writes after tuning, e.g.
+#   DURMS (stream wall-clock limit, ms; 2000), PACK (ICAP packer: 0 = 40 Msps, 2 = 10 Msps, 8 = 30 Msps), X="reg=val ..." (extra register writes after tuning, e.g.
 #   0x83081000=0x84000000 to keep the card's own 20 MHz demodulator from locking onto narrow frames)
 cd /root/fwre
 CARD=$1 NPKT=$2 C=${3:-0} F=${4:-5180} TAP=${5:-4} OUT=${6:-/tmp/iq.bin}
@@ -38,7 +38,7 @@ if [ -n "$GAIN" ]; then	# analog clamp first (RF 0x768 on both paths), then digi
 	rmw 0x83000150 0x8070f000 $(( 0x80000000 | lna << 20 ))
 	rmw 0x830000c4 0xf7f7f707 $(( 7 | lna << 8 | lpf << 12 | lna << 16 | lpf << 20 | lna << 24 | lpf << 28 ))
 fi
-ICAP_SETUP_ONLY=1 python3 icap.py $P /dev/null $TAP 3 > /dev/null
+ICAP_PACK=${PACK:-0} ICAP_SETUP_ONLY=1 python3 icap.py $P /dev/null $TAP 3 > /dev/null
 v=$(python3 fwdbg.py $P read 0x820e3000 1 | cut -d' ' -f2)
 python3 fwdbg.py $P write 0x820e3000 $(printf "0x%x" $(( (0x$v & ~0x200) | 0x100 ))) > /dev/null	# MAC TX off; RX must stay on (it gates the PHY receive)
 python3 fwdbg.py $P write $CFG ${CHUNK:-4080} ${INFLIGHT:-1} ${THRESH:-0} ${HANG:-500} ${PRE:-4096} ${NSUM:-32} 0 ${DURMS:-2000} > /dev/null

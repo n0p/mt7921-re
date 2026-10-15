@@ -1,0 +1,2 @@
+# Default: packet pool with a dedicated ICAP partition (asm/icap_pool_layout.S, notes/08-icap-ring-and-rate.md Fix A).
+bin 0x0094bb66 build/asm/icap_pool_layout.bin

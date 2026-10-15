@@ -4,6 +4,7 @@
 #   make restore    -> put the stock image back in the guest
 #   make verify     -> check region PDA checksums and file crc of the output
 #   make OUTBAND=1  -> also apply patches/outband.def (sniffer "outband" MHz override, notes/04-2g3-tuning.md)
+# Always applied: patches/icappool.def (packet pool with a dedicated ICAP partition, notes/08-icap-ring-and-rate.md)
 
 STOCK      ?= ../work/fw/WIFI_RAM_CODE_MT7961_1.bin
 STOCK_SHA  := b94217a951518a9c14095765f367bc5dd7698f2dc033941d6f18fc2ebd6a2ab9
@@ -32,8 +33,8 @@ OUT        := out/WIFI_RAM_CODE_MT7961_1.bin
 #   @link 0xADDR   @defsym name=0xADDR
 AS         := $(CROSS)as
 ASFLAGS    := -EL -march=v3 -mreduced-regs -mno-all-relax
-EXTRA_DEFS := $(if $(filter 1,$(OUTBAND)),patches/outband.def)
-EXTRA_BINS := $(if $(EXTRA_DEFS),$(patsubst asm/%.S,build/asm/%.bin,$(wildcard asm/*.S)))
+EXTRA_DEFS := patches/icappool.def $(if $(filter 1,$(OUTBAND)),patches/outband.def)
+EXTRA_BINS := $(patsubst asm/%.S,build/asm/%.bin,$(wildcard asm/*.S))
 
 all: $(OUT)
 

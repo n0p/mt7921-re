@@ -125,7 +125,8 @@ static u32 energy(u32 idx, u32 ring, u32 n)
 	return e;
 }
 
-/* npkt: packets to send; eid: event id; settle_us: capture run-in; timeout_us: producer / DMA stall limit.
+/* npkt: packets to send; eid: event id; settle_us: wait before the capture starts; timeout_us: producer / DMA stall
+ * limit.
  * Returns state << 24 | packets sent. */
 u32 hk_iqstream(u32 npkt, u32 eid, u32 settle_us, u32 timeout_us)
 {
@@ -173,13 +174,18 @@ u32 hk_iqstream(u32 npkt, u32 eid, u32 settle_us, u32 timeout_us)
 	WF(GLO_CFG) = (glo & ~GLO_B30) | GLO_TX_EN;
 	dsb();
 
+	/* settle_us before the capture starts: the detached debug call's response event (and any other packet still
+	 * queued in the packet SRAM) must leave before the ring overwrites it */
+	t = US_NOW;
+	while (US_NOW - t < settle_us)
+		;
 	ICAP_RING_START = 0;
 	ICAP_RING_END = ring - 4;
 	ICAP_CTL = ICAP_ARM;	/* re-arm: after a previous run's STOP, GO alone does not restart the capture */
 	dsb();
 	ICAP_CTL = ICAP_GO;
 	t = US_NOW;
-	while (US_NOW - t < settle_us)
+	while (US_NOW - t < 100)	/* run-in */
 		;
 	last = ICAP_PROD & 0xffff;
 	p = last;
@@ -269,8 +275,11 @@ u32 hk_iqstream(u32 npkt, u32 eid, u32 settle_us, u32 timeout_us)
 stop:
 	iq_stat.t_us = US_NOW - t0;
 	ICAP_CTL = ICAP_STOP;
+	/* Let the descriptors in flight finish before the ring is reset under them: resetting it while the host has
+	 * stalled bulk IN (two cards streaming through one VM) wedged the USB DMA, and the card's vendor requests timed
+	 * out until the driver reset it. */
 	t = US_NOW;
-	while (WF(TX0_DIDX) != WF(TX0_CIDX) && US_NOW - t < 100000)
+	while (WF(TX0_DIDX) != WF(TX0_CIDX) && US_NOW - t < timeout_us)
 		;
 	WF(GLO_CFG) = glo & ~(GLO_TX_EN | GLO_B30);
 	WF(TX0_BASE) = base;
