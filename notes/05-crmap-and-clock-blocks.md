@@ -17,9 +17,9 @@
   | +0x28 | 0x826bb0 | transaction VaArgs set |
   | +0x84 | 0x826860 | GetChipModuleIfc(module) = *(gp+73476 + 4*module) |
 
-- Full dump: `work/crmap/crmap.json`, `work/crmap/crmap.txt` (36 tables, 1114 registers, 3923 fields; table
+- Full dump: `data/crmap/crmap.json`, `data/crmap/crmap.txt` (36 tables, 1114 registers, 3923 fields; table
   0x84aa6c..0x84f388, functions 0x826e0e..0x83afca). All 280 GCI calls in the 2026 RAM firmware, with decoded
-  selectors: `work/crmap/ram_gci_calls.txt`.
+  selectors: `data/crmap/ram_gci_calls.txt`.
 - Module bases (band 0 / band 1 or path 0 / path 1):
   - LMAC: ARB 0x00/01 → 0x820e3000/0x820f3000; AGG 0x02/03 → 0x820e2000/0x820f2000; WF_DMA 0x04/05;
     ETBF 0x0a/0b; WF_CFG 0x0c/0d → 0x820e0000/0x820f0000; RMAC 0x12/13; TMAC 0x17/18; MIB 0x1a/1b;
@@ -75,4 +75,4 @@
 
 Every other bandwidth-dependent PHY write (0x83081000 bits 30:28/27:24, 0x83086010, 0x8308xxxx, 0x8300d0ac, A-die
 0x160/0xb00/0xb04) is a direct store in FUN_0093dbd4 / FUN_0093c8xx, not GCI. Of the registers that differ between
-20/40/80 MHz (work/phydump/diffbw.txt), only 0x83081000, 0x820e3150 and 0x820ed02c are in the GCI tables.
+20/40/80 MHz (data/phydump/diffbw.txt), only 0x83081000, 0x820e3150 and 0x820ed02c are in the GCI tables.

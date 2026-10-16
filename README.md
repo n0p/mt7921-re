@@ -142,15 +142,18 @@ tools/rigrecover.sh                         # after a card wedge: USB reset, VM 
   at 2350 MHz (amateur licence).
 
 ## Repository map (what file is what)
-Not in git: `work/` (firmware images, the Ghidra project, the decompilation exports `work/decomp/all.c` and
-`rom_all.c`, external repositories) and `__pycache__/`.
+Not in git (`.gitignore`): the local `work/` directory, the firmware build outputs `fw/build/` and `fw/out/`,
+and binaries of any kind (firmware images, memory dumps, IQ captures). "Rebuilding work/" below says how to
+recreate them.
 
 ### Top level
 | file | what it is |
 |---|---|
 | `README.md` | this page |
 | `informe_mt7921.md` | the previous agent's research report (Spanish); superseded, kept for reference |
+| `.gitignore` | what stays out of git (see above) |
 | `patches/0001-mt7921-force_cbw-experiment.patch` | mt76 patch adding a `force_cbw` parameter, for experiment 1 (`tools/guest/exp1_narrowbw.sh`) |
+| `patches/birriasdr-mt7921-rig.patch` | the rig's BirriaSDR changes (any LO from 2.3 to 2.5 GHz, `BIRRIA_FREQ`, the 0e8d:7961 USB ID), on upstream commit 80ec6fc |
 
 ### notes/
 | file | topic |
@@ -165,6 +168,19 @@ Not in git: `work/` (firmware images, the Ghidra project, the decompilation expo
 | [08](notes/08-icap-ring-and-rate.md) | ICAP ring placement, SRAM modes, packet-pool layout, capture rate |
 | [09](notes/09-continuous-narrowband-node.md) | continuous narrowed capture, the node, the ÷8 transmitter, the tone DAC, rig limits |
 | [10](notes/10-fec.md) | FEC: the card's coding options, receiver sensitivity, TX truncation and the MAC tick, nbmesh and p11node on hardware |
+| [11](notes/11-phy-clock-tree.md) | static study: the D-die PHY clock tree vs channel width (is a 10 MHz PHY possible?) |
+| [12](notes/12-mt7996-narrow-recipe.md) | static study: MediaTek's 5/10 MHz recipe on MT7996 (w1700k) compared with MT7921 |
+
+### data/ (analysis results the notes and tools use)
+| file | what it is |
+|---|---|
+| `crmap/crmap.json`, `crmap/crmap.txt` | the boot ROM's register-field (GCI) tables, decoded: 36 tables, 1114 registers, 3923 fields (notes/05). `tools/gci_comment.py` reads the JSON |
+| `crmap/ram_gci_calls.txt` | every GCI call of the RAM firmware with its decoded selector (function, access, register field) |
+| `phydump/diff22.txt`, `diff26.txt`, `diffA.txt`, `diffbw.txt`, `diffwide.txt` | PHY/RF/MAC register differences between widths and firmware versions, from register snapshots (`tools/phydiff.py`; notes/03, 05, 06) |
+| `phydump/crtableA.csv`, `crtableB.csv` | the firmware's compressed PHY CR tables, decoded (`tools/crtable.py`; notes/06) |
+| `phydump/bisect_5180_10.txt`, `txbisect.txt`, `reg83081000.txt` | emission measured per narrow-profile register and per 0x83081000 value (X410; `tools/sdr/bisect.sh`, `regtry.sh`) |
+| `phydump/rxsweep1.txt` | a narrow-reception register sweep on card B (`tools/sdr/rxsweep.sh`) |
+| `phydump/all_pages.txt` | every 4 KB register page probed for the snapshots |
 
 ### fw/ (instrumented firmware)
 | file | what it is |
@@ -181,7 +197,7 @@ Not in git: `work/` (firmware images, the Ghidra project, the decompilation expo
 | `asm/icap_pool_layout.S` | packet pool with a dedicated ICAP partition (notes/08 Fix A) |
 | `asm/sniffer_outband_call.S`, `asm/sniffer_outband_tramp.S` | opt-in frequency override through the sniffer config (notes/04) |
 | `patches/icappool.def`, `patches/outband.def` | patch sets: default, and opt-in (`make OUTBAND=1`) |
-| `build/`, `out/` | build outputs: objects, `hooks.nm` (the hook addresses; `make install` copies it to `/root/fwre/hooks.nm`, which the nodes read), the patched images |
+| `build/`, `out/` | build outputs, not in git: objects, `hooks.nm` (the hook addresses; `make install` copies it to `/root/fwre/hooks.nm`, which the nodes read), the patched images |
 
 ### tools/ (laptop side: rig access, firmware images, decompilation)
 | file | what it is |
@@ -290,7 +306,8 @@ Not in git: `work/` (firmware images, the Ghidra project, the decompilation expo
 | file | what it is |
 |---|---|
 | `snap2022.sh`, `snapA.sh`, `snapbw.sh`, `snapwide.sh` | PHY/RF/MAC register page snapshots (2022 firmware; card A narrow; bandwidth progression; wide set) |
-| `wide_pages.txt`, `phy_pages.txt` | the register page lists those snapshots read |
+| `wide_pages.txt`, `phy_pages.txt` | the register page lists those snapshots read (`wide_pages.txt` holds only pages safe to read) |
+| `narrow_profiles.json` | the 2022 firmware's narrow register profiles (10 / 5 MHz), applied by `narrow_test.sh`, `narrow_tx.sh` and `tools/sdr/measure.sh`, `bisect.sh` |
 
 ### tools/sdr/ (X410 SDR on lorien, and offline analysis)
 **Receivers and decoders**
@@ -319,3 +336,29 @@ Not in git: `work/` (firmware images, the Ghidra project, the decompilation expo
 | `nbtest.sh`, `nbmulti.sh`, `rxsweep.sh`, `rxmatrix.sh`, `codesweep.sh` | card B narrow-reception searches against X410 frames |
 | `phycnt.sh`, `pdcnt.sh`, `aterxcnt.sh` | PHY counter readouts around X410 bursts (packet detect, ATE) |
 | `streamtest.sh`, `c2cstream.sh` | end-to-end IQ-stream reception: X410 → card; card → card |
+
+## Rebuilding work/ (local data, not in git)
+The tools expect a `work/` directory next to `tools/`. It holds MediaTek's code and what is derived from it, plus
+large captures and third-party sources, so it stays out of git. Everything in it can be recreated:
+
+| `work/` path | contents | how to get it |
+|---|---|---|
+| `fw/WIFI_RAM_CODE_MT7961_1.bin` | the stock RAM firmware, build 20260224110949 | linux-firmware `mediatek/WIFI_RAM_CODE_MT7961_1.bin` of that build; `fw/Makefile` checks its SHA-256 (`b94217a9…`) |
+| `fw/WIFI_MT7961_patch_mcu_1_2_hdr.bin`, `fw/guest/` | the ROM patch the cards run (2024 build) and the guest's images | linux-firmware, or copied from the guest. **Never load a 2025+ ROM patch** |
+| `regions/`, `regions_*` | the images' load regions | `tools/mtfw_split.py` |
+| `regions_rt/` | the runtime layout Ghidra loads (.data moved by 0x44c) | `tools/mkruntime.py`, plus `rom/rom_800000.bin` |
+| `rom/` | boot-ROM dumps | read from a card: `tools/guest/memdump.py <phy> read 0x800000 0x100000 rom_full_800000.bin` (512 KB of content, mirrored; notes/02) |
+| `fw2022_live/` | the 2022 RAM firmware, decrypted | dumped from live memory with the 2022 image loaded (`tools/guest/rig2022.sh`, `memdump.py`; notes/02) |
+| `dlm_live_B.bin`, `live_dlm_*.bin`, `sram/` | live DLM and packet-SRAM dumps | `tools/guest/memdump.py`, `fwdbg.py read`, `sramsnap.py` |
+| `ghidra/` | Ghidra project: the 2026 RAM image, the ROM patch and the boot ROM | install `tools/ghidra/NDS32_MT7961` into Ghidra's Extensions, then `tools/ghidra_build.sh` (RAM image and ROM patch). The boot ROM program `rom_800000.bin` (language NDS32:LE:32:mt7961rom) is imported by hand (notes/02) |
+| `ghidra22/` | Ghidra project of the 2022 RAM image | imported by hand from `fw2022_live/` with the `nds32mt7961_2022` language |
+| `decomp/all.c`, `rom_all.c`, `all2022.c` | decompilations: the 2026 ones commented | `tools/annotate.sh` (2026 RAM and boot ROM); `all2022.c`: `DecompAll.java` on the 2022 project; `tools/decomp.sh` for single functions |
+| `dis/` | disassembly listings (address, instruction) | exported from the Ghidra projects (no script in the repo) |
+| `phydump/*.bin` | raw register snapshots | `tools/guest/snap*.sh`. The diffs derived from them are in `data/phydump/` |
+| `icap/` | IQ captures and stream records (~1.4 GB) | `tools/guest/icap*.sh`, `iqstream.sh`, `tools/sdr/capture.py` |
+| `ext/birria/` | BirriaSDR (MIT), with the rig's changes | `git clone https://github.com/luigifcruz/BirriaSDR`, check out 80ec6fc, `git apply patches/birriasdr-mt7921-rig.patch` |
+| `ext/icap/MtkICAPtool/` | MtkICAPtool | `git clone https://github.com/MtkWifiRev/MtkICAPtool` (commit d829596) |
+| `ext/w1700k/` | the W1700K SDR sources (MT7996 SDR on a Gemtek W1700K router); notes use its MT7996 register headers | the W1700K SDR project |
+| `ext/nullcon/` | slides: D. Wegemer and E. Mantovani, "Unlock hidden Superpowers in Mediatek Wi-Fi Chips", Nullcon 2025 | the talk's published slides |
+| `ext/mt7921-11p-linux/` | the author's earlier OCB/802.11p driver work for these cards | a separate repository |
+| `guestmods/`, `debs/`, `src/mt76/`, `patchbuild/`, `out/` | driver module builds, kernel headers, an mt76 header copy, the experiment-1 patch tree, experimental firmware variants | rebuilt when needed |

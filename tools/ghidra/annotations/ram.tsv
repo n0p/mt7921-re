@@ -84,11 +84,11 @@
 0x0096c61c	func	icapSelectDomain	ICAP capture domains: 4 = BirriaSDR's (MODE 0x13, bit 23), 1 = MODE 0x14 (0x830ad448 [15:8] SEL, [19:18] rate, bit 24), 2 = MODE 0x20/0x21 (0x830ad44c) (notes/03).
 0x0096b672	func	icapHelper1	ICAP helper -> FUN_96c546 (sets |= 0x40).
 0x0096b67c	func	icapHelper2	ICAP helper -> FUN_96c554 (sets |= 0x40).
-0x02013800	label	gciGetB_p	GCI accessor pointer: get byte (sel, *out). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x02013804	label	gciGetW_p	GCI accessor pointer: get word (sel, *out). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x02013808	label	gciGetD_p	GCI accessor pointer: get dword (sel, *out). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x0201380c	label	gciSet_p	GCI accessor pointer: set (sel, value): one read-modify-write. tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x0201381c	label	gciSetTriples_p	GCI accessor pointer: varargs triples. tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x02013820	label	gciSetPairs_p	GCI accessor pointer: varargs (n, sel, val, ...). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x02013828	label	gciTxnSetPairs_p	GCI accessor pointer: transaction varargs (n, sel, val, ...). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
-0x02013884	label	gciGetModuleIfc_p	GCI accessor pointer: GetChipModuleIfc(module). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)
+0x02013800	label	gciGetB_p	GCI accessor pointer: get byte (sel, *out). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x02013804	label	gciGetW_p	GCI accessor pointer: get word (sel, *out). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x02013808	label	gciGetD_p	GCI accessor pointer: get dword (sel, *out). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x0201380c	label	gciSet_p	GCI accessor pointer: set (sel, value): one read-modify-write. tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x0201381c	label	gciSetTriples_p	GCI accessor pointer: varargs triples. tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x02013820	label	gciSetPairs_p	GCI accessor pointer: varargs (n, sel, val, ...). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x02013828	label	gciTxnSetPairs_p	GCI accessor pointer: transaction varargs (n, sel, val, ...). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)
+0x02013884	label	gciGetModuleIfc_p	GCI accessor pointer: GetChipModuleIfc(module). tools/gci_comment.py decodes the selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)

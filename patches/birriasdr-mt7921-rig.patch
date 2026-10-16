@@ -1,0 +1,69 @@
+BirriaSDR changes for the mt7921 narrowband rig (tools/guest/icap.py follows BirriaSDR's capture sequence).
+
+Upstream: https://github.com/luigifcruz/BirriaSDR (MIT licence), base commit 80ec6fc.
+Apply in a BirriaSDR checkout: git apply birriasdr-mt7921-rig.patch
+- src/chips/mt7921_capture.c, mt7921_rf.c: accept any LO from 2.3 to 2.5 GHz (13 cm amateur band through Wi-Fi
+  channel 14) with the 2.4 GHz receive profile, instead of 2437 MHz only;
+- examples/birria_rx.c: env BIRRIA_FREQ (Hz) sets the LO;
+- src/usb.c: the 0e8d:7961 USB ID (the rig's cards: the same MT7961/MT7972 pair) marked qualified.
+
+diff --git a/examples/birria_rx.c b/examples/birria_rx.c
+index fa94306..7463f44 100644
+--- a/examples/birria_rx.c
++++ b/examples/birria_rx.c
+@@ -96,6 +96,14 @@ int main(int argc, char **argv)
+         return 1;
+     }
+     recorder.dev = dev;
++    if (getenv("BIRRIA_FREQ")) {	/* mt7921-11p rig: LO in Hz (2.3..2.5 GHz) */
++        result = birriasdr_set_center_freq(dev, strtoull(getenv("BIRRIA_FREQ"), NULL, 10));
++        if (result < 0) {
++            fprintf(stderr, "Frequency: %s\n", birriasdr_strerror(result));
++            birriasdr_close(dev);
++            return 1;
++        }
++    }
+     recorder.file = fopen(argv[1], "wbx");
+     if (!recorder.file) {
+         perror("Output (must not already exist)");
+diff --git a/src/chips/mt7921_capture.c b/src/chips/mt7921_capture.c
+index af44e4d..3c8bd61 100644
+--- a/src/chips/mt7921_capture.c
++++ b/src/chips/mt7921_capture.c
+@@ -115,7 +115,9 @@ static int validate(uint64_t frequency, uint32_t rate, const struct birriasdr_ga
+ {
+     if (gain->lna > 3 || gain->lpf > 8 || gain->digital > 12)
+         return BIRRIASDR_ERROR_INVALID;
+-    if (frequency != UINT64_C(2437000000) || rate != 40000000)
++    /* mt7921-11p rig: the synthesizer word is computed for any LO; the 2.4 GHz receive profile is used from
++     * 2.3 to 2.5 GHz (13 cm amateur band through Wi-Fi channel 14) */
++    if (frequency < UINT64_C(2300000000) || frequency > UINT64_C(2500000000) || rate != 40000000)
+         return BIRRIASDR_ERROR_UNSUPPORTED;
+     return 0;
+ }
+diff --git a/src/chips/mt7921_rf.c b/src/chips/mt7921_rf.c
+index d5df223..e48ac07 100644
+--- a/src/chips/mt7921_rf.c
++++ b/src/chips/mt7921_rf.c
+@@ -359,7 +359,7 @@ static int select_receive_path(birriasdr_dev_t *dev)
+ int mt_configure_rf(birriasdr_dev_t *dev)
+ {
+     uint32_t analog, crystal;
+-    if (dev->frequency != UINT64_C(2437000000) || dev->rate != 40000000)
++    if (dev->frequency < UINT64_C(2300000000) || dev->frequency > UINT64_C(2500000000) || dev->rate != 40000000)
+         return BIRRIASDR_ERROR_UNSUPPORTED;
+     BS_TRY(mt_rf_read(dev, MT_TOP_PORT, 0x2c, &analog));
+     BS_TRY(bs_read32(dev, BS_MMIO, 0x02004600, &crystal));
+diff --git a/src/usb.c b/src/usb.c
+index be5ed29..60884e6 100644
+--- a/src/usb.c
++++ b/src/usb.c
+@@ -15,7 +15,7 @@
+ /* Enumerate known identities without assuming identical RF wiring across boards. */
+ static const struct bs_usb_id devices[] = {
+     {0x3574, 0x6211, "COMFAST MT7961 / MT7972", &bs_mt7921_backend, true},
+-    {0x0e8d, 0x7961, "MediaTek MT7921 USB (board not qualified)", &bs_mt7921_backend, false},
++    {0x0e8d, 0x7961, "MediaTek MT7921 USB (same MT7961/MT7972 pair, mt7921-11p rig)", &bs_mt7921_backend, true},
+     {0x0e8d, 0x7925, "MediaTek MT7925 USB (not implemented)", &bs_mt7925_backend, false},
+     {0x0846, 0x9050, "Netgear A8500 MT7925 (not implemented)", &bs_mt7925_backend, false},
+     {0x0846, 0x9072, "Netgear A9000 MT7925 (not implemented)", &bs_mt7925_backend, false}

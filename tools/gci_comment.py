@@ -4,7 +4,7 @@
 The firmware writes most MAC/PHY fields through the GCI accessor table (DLM 0x02013800.., labelled gci*_p by
 tools/ghidra/annotations) or, in the ROM, the accessor functions themselves. Their selectors
 (module << 16 | group << 5 | field) mean nothing on sight. This inserts, above each call, the decoded register and
-bit range for every constant selector (work/crmap/crmap.json), with the register name from regs.tsv; selectors whose
+bit range for every constant selector (data/crmap/crmap.json), with the register name from regs.tsv; selectors whose
 field or group crmap lacks fall back to the register address or the module and group. Old GCI comment lines are
 dropped first, so re-running refreshes them. Usage: gci_comment.py <export.c> [crmap.json] [regs.tsv]"""
 import json
@@ -103,7 +103,7 @@ def selector(expr):
 
 def main():
     path = sys.argv[1]
-    crmap = load_crmap(sys.argv[2] if len(sys.argv) > 2 else "work/crmap/crmap.json")
+    crmap = load_crmap(sys.argv[2] if len(sys.argv) > 2 else "data/crmap/crmap.json")
     names = {}
     for line in open(sys.argv[3] if len(sys.argv) > 3 else "tools/ghidra/annotations/regs.tsv"):
         if line[:2] == "0x":

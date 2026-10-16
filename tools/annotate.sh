@@ -19,7 +19,7 @@ run() {	# <program> <tsv>... <out>
 	/opt/ghidra/support/analyzeHeadless work/ghidra mt7961 -process "$prog" -noanalysis -scriptPath tools/ghidra \
 		-postScript Annotate.java $tsvs -postScript MmioVolatile.java true -postScript AutoComment.java -postScript DecompAll.java "$PWD/$out" 2>&1 \
 		| grep -E "(Annotate|MmioVolatile|AutoComment|DecompAll).java>|ERROR|Exception" | sed 's/^INFO  //; s/ (GhidraScript) *$//'
-	python3 tools/gci_comment.py "$out" work/crmap/crmap.json "$A/regs.tsv"
+	python3 tools/gci_comment.py "$out" data/crmap/crmap.json "$A/regs.tsv"
 }
 for w in ${@:-ram rom}; do
 	case $w in

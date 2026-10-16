@@ -1,7 +1,7 @@
 # 08 — ICAP ring placement, SRAM modes, packet-pool layout and capture rate (static, 2026-10-15)
 
 Static analysis only: RAM firmware 20260224110949 (`work/decomp/all.c`, `work/dis/ram_0_00915000.txt`), ROM
-(`work/decomp/rom_all.c`, `work/dis/rom_800000.txt`), the GCI map (`work/crmap/crmap.json`) and the MT7996 reference
+(`work/decomp/rom_all.c`, `work/dis/rom_800000.txt`), the GCI map (`data/crmap/crmap.json`) and the MT7996 reference
 (`work/ext/w1700k/src/include/hw/mt7996/{icap,cap_route,iq_format,dfe,mcu_map}.h`, the same ICAP/UMAC IP family).
 Tags: [static] read from code or tables, [hw] measured on the rig (coordinator, 2026-10-15), [inferred].
 

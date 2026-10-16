@@ -1,0 +1,37 @@
+stock obw20=17.94  obw99=16.47  peak=16.4  burst_us=400    bursts=12
+0x83000004=0x00353535(was 0x00353335) obw20=18.21  obw99=16.47  peak=16.0  burst_us=333    bursts=9
+0x83000140=0xac088802(was 0xa9088802) obw20=17.94  obw99=16.47  peak=16.0  burst_us=333    bursts=9
+0x83000148=0x003d0000(was 0x003a0000) obw20=17.97  obw99=16.47  peak=16.2  burst_us=317    bursts=8
+0x8300016c=0x000f3d00(was 0x000f3a00) obw20=17.79  obw99=16.47  peak=16.4  burst_us=400    bursts=5
+0x830001b4=0xb500003d(was 0xb5000000) obw20=17.79  obw99=16.47  peak=16.4  burst_us=367    bursts=10
+0x830001c0=0xc400003d(was 0xc4000000) obw20=17.79  obw99=16.47  peak=16.4  burst_us=333    bursts=4
+0x83000244=0x0000003e(was 0x00000000) obw20=17.79  obw99=16.47  peak=16.6  burst_us=400    bursts=9
+0x830003e8=0x20008000(was 0x20004000) obw20=17.82  obw99=16.47  peak=16.6  burst_us=400    bursts=8
+0x8300d06c=0x000000c0(was 0x000000a0) obw20=17.94  obw99=16.47  peak=16.2  burst_us=300    bursts=12
+0x830100d4=0x0d3fccfc(was 0x0ccfccfc) obw20=18.18  obw99=16.47  peak=16.2  burst_us=367    bursts=9
+0x8301016c=0x000f3800(was 0x000f3a00) obw20=17.79  obw99=16.47  peak=16.5  burst_us=400    bursts=9
+0x8301d06c=0x000000c0(was 0x000000a0) obw20=17.94  obw99=16.5   peak=16.6  burst_us=400    bursts=6
+0x83080000=0x00000000(was 0x00001000) obw20=17.79  obw99=16.47  peak=16.5  burst_us=367    bursts=10
+0x83081000=0xd0000000(was 0x90000000) obw20=4.89   obw99=0.0    peak=24.1  burst_us=0      bursts=0
+0x83086010=0x009e009e(was 0x013c013c) obw20=17.79  obw99=16.5   peak=16.4  burst_us=367    bursts=9
+0x83088010=0x15070808(was 0x15070a0a) obw20=17.94  obw99=16.5   peak=16.3  burst_us=333    bursts=6
+0x83088014=0xea070808(was 0xea0b0808) obw20=18.03  obw99=16.47  peak=15.8  burst_us=333    bursts=8
+0x83088018=0x00f5724f(was 0x00f6124f) obw20=17.82  obw99=16.5   peak=16.3  burst_us=367    bursts=6
+0x83088200=0x224d45d7(was 0xa24d45d7) obw20=17.97  obw99=16.47  peak=16.1  burst_us=400    bursts=9
+0x8308829c=0x0000000b(was 0x8000000b) obw20=17.94  obw99=16.47  peak=16.3  burst_us=317    bursts=10
+0x830882ac=0x28db9918(was 0xabdb9918) obw20=17.94  obw99=16.47  peak=15.8  burst_us=367    bursts=8
+0x830882cc=0x20422c18(was 0x28425c18) obw20=17.79  obw99=16.47  peak=16.5  burst_us=317    bursts=6
+0x830882d0=0x1452a156(was 0x1452a150) obw20=17.94  obw99=16.47  peak=16.2  burst_us=267    bursts=11
+0x83088394=0x00000000(was 0x00100300) obw20=17.79  obw99=16.47  peak=16.2  burst_us=400    bursts=12
+0x830884bc=0x51496a79(was 0x51496a77) obw20=18.03  obw99=16.47  peak=16.2  burst_us=383    bursts=4
+0x8308f0a4=0x00000000(was 0x40000000) obw20=17.94  obw99=16.47  peak=16.3  burst_us=333    bursts=7
+0x8308f130=0x8800739c(was 0x8880739c) obw20=17.94  obw99=16.47  peak=16.3  burst_us=400    bursts=5
+0x83092130=0x00000402(was 0x00000402) obw20=18.18  obw99=16.47  peak=15.7  burst_us=367    bursts=7
+0x83092140=0x00000000(was 0x00000000) obw20=17.94  obw99=16.47  peak=16.0  burst_us=300    bursts=9
+0x830a7014=0x01b7c4f6(was 0x01b4c4f6) obw20=18.03  obw99=16.47  peak=16.1  burst_us=367    bursts=9
+0x830a708c=0x00001000(was 0x00001110) obw20=18.03  obw99=16.47  peak=15.8  burst_us=300    bursts=9
+0x830a71d0=0x001b0d33(was 0x001b1d33) obw20=18.18  obw99=16.47  peak=15.9  burst_us=383    bursts=12
+0x830a7520=0x302d0404(was 0x3024c304) obw20=17.79  obw99=16.47  peak=16.3  burst_us=383    bursts=10
+0x830a770c=0x0e111416(was 0x10131618) obw20=17.79  obw99=16.47  peak=16.1  burst_us=400    bursts=7
+0x830a7710=0x1b202028(was 0x1d202028) obw20=17.79  obw99=16.47  peak=16.5  burst_us=400    bursts=11
+stock-end obw20=17.94  obw99=16.47  peak=15.9  burst_us=367    bursts=7

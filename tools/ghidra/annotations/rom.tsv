@@ -10,7 +10,7 @@
 0x00800c7e	func	irqSave	Disables interrupts (GIE) and saves the previous PSW state into *out.
 0x0080ab32	func	connAfeSetXtal	Per-crystal CONN AFE setup (xtal_hz = 24/25/26/40 MHz): CONN_AFE_XTALCNT 0x7c0030f4 = two crystal-cycle counts (50.5 and 30.3 x f_MHz); CONN_AFE_XTALMODE 0x7c003004 [1:0]/[7:6] = 2/1 for 24 AND 40 MHz (3/3 for 25, 3/1 for 26), [3:2] = [17:16] = 3. Identical codes for 24 and 40 MHz: crystal-type settings, not PLL ratios; no clock divider here (notes/07). HAZARD: never write these.
 0x00806de6	func	connAfeInitPulse	CONN AFE init pulse sequence on 0x7c003000/04/08 bits (reset/enable steps with delays).
-0x00826aac	func	gciModuleIfcInit	Fills the module interface array DLM 0x02014f04 + 4*module (0x5c modules): base addresses and field tables per module (notes/05, work/crmap).
+0x00826aac	func	gciModuleIfcInit	Fills the module interface array DLM 0x02014f04 + 4*module (0x5c modules): base addresses and field tables per module (notes/05, data/crmap).
 0x0082693a	func	gciAccessorInit	Fills the GCI accessor table DLM 0x02013800..0x0201388c (MT7996 'FIT').
 0x00826860	func	gciGetModuleIfc	GetChipModuleIfc(module) = *(gp + 73476 + 4*module); module < 92 (accessor +0x84).
 0x00826b70	func	gciSet	Set(selector, value): one read-modify-write (accessor +0x0c). Selector = module<<16 | group<<5 | field.

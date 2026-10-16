@@ -2,10 +2,10 @@
 
 Purpose: find where the receive demodulator's rate/timing is set per channel width. Evidence comes from
 work/decomp/all.c (RAM), rom_all.c (ROM), all2022.c, the DLM image (work/regions/ram_1_02015c00.bin, live =
-download + 0x44c) and live snapshots (work/phydump/wide_*.bin, bw_*.bin; page list wide_pages_safe.txt).
+download + 0x44c) and live snapshots (work/phydump/wide_*.bin, bw_*.bin; page list tools/guest/wide_pages.txt).
 New tools:
 - tools/bwmap.py: call-graph walk printing PHY/RF writes; resolves the ROM API table at 0x822xxx from the ROM dump.
-- tools/crtable.py: decodes the compressed CR tables. Output in work/phydump/crtableA.csv and crtableB.csv.
+- tools/crtable.py: decodes the compressed CR tables. Output in data/phydump/crtableA.csv and crtableB.csv.
 
 ## Call path
 CHANNEL_SWITCH / SET_RX_PATH, ext 0x08/0x4e → `ext_cmd_08__ext_cmd_4e` 0x964494:
@@ -77,7 +77,7 @@ It reproduces the live 20/40/80 snapshots exactly (e.g. 0x83000140 a9/ac/af08880
 - 5 MHz, 1 RX stream: code t0+9, the "20 MHz, t2 = 1" column (c5).
 - With 2 RX streams they become the t3 = 1 columns c25 / c24.
 
-So the "2022 narrow profiles" (work/phydump/narrow_profiles.json) are just these alias columns. Their 8 non-bandwidth
+So the "2022 narrow profiles" (tools/guest/narrow_profiles.json) are just these alias columns. Their 8 non-bandwidth
 registers (0x8308829c, 0x830882ac/cc/d0, 0x830884bc, 0x830a708c/7520/7788) are the t2 stream variant.
 
 Bandwidth-dependent registers in table A (5 GHz, 20/40/80) are all AGC/threshold-like scalings plus 80 MHz-only tweaks:

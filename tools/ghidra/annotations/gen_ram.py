@@ -177,7 +177,7 @@ for off, op, what in [(0x00, "GetB", "get byte (sel, *out)"), (0x04, "GetW", "ge
                       (0x28, "TxnSetPairs", "transaction varargs (n, sel, val, ...)"),
                       (0x84, "GetModuleIfc", "GetChipModuleIfc(module)")]:
     add(0x02013800 + off, "label", f"gci{op}_p", f"GCI accessor pointer: {what}. tools/gci_comment.py decodes the "
-        "selectors at every call (module<<16 | group<<5 | field, work/crmap/crmap.json)")
+        "selectors at every call (module<<16 | group<<5 | field, data/crmap/crmap.json)")
 
 # ---- registers --------------------------------------------------------------------------------------------------
 R = [

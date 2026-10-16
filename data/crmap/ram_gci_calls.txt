@@ -1,0 +1,280 @@
+7835	FUN_ram_0091bf72	GetB	0x140b23=m0x14g89f3->0x820c2008[11:8]	| 0x140b23,&local_11,DAT_ram_02013800)
+8801	FUN_ram_0091ca32	Set	0x140b23=m0x14g89f3->0x820c2008[11:8]	| 0x140b23,bVar3,DAT_ram_0201380c)
+13351	ce_cmd_f6	Set	0x120806=m0x12g64f6->0x820e5100[11:11]	| 0x120806,1,DAT_ram_0201380c)
+13355	ce_cmd_f6	Set	0x130806=m0x13g64f6->0x820f5100[11:11]	| 0x130806,1,DAT_ram_0201380c)
+13386	ce_cmd_f6	Set	0x120806=m0x12g64f6->0x820e5100[11:11]	| 0x120806,0,DAT_ram_0201380c)
+13390	ce_cmd_f6	Set	0x130806=m0x13g64f6->0x820f5100[11:11]	| 0x130806,0,DAT_ram_0201380c)
+14675	FUN_ram_009220c0	Set	0x120806=m0x12g64f6->0x820e5100[11:11]	| 0x120806,1,DAT_ram_0201380c)
+14679	FUN_ram_009220c0	Set	0x130806=m0x13g64f6->0x820f5100[11:11]	| 0x130806,1,DAT_ram_0201380c)
+14696	FUN_ram_009220c0	Set	0x120806=m0x12g64f6->0x820e5100[11:11]	| 0x120806,0,DAT_ram_0201380c), iVar1 != 0 ||
+14697	FUN_ram_009220c0	Set	0x130806=m0x13g64f6->0x820f5100[11:11]	| 0x130806,0,DAT_ram_0201380c), iVar1 != 0)))) {
+31618	FUN_ram_00931b2c	TxnSetVA		| 4,iVar17,0,iVar17 + -1,0,DAT_ram_02013828)
+35295	FUN_ram_0093655a	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| *piVar1 + param_1 * 0x10000,*(undefined1 *)((int)local_30 + iVar2),
+35514	FUN_ram_0093678c	SetVA		| 10,param_5 + iVar6,param_3,iVar2 + param_5,param_4,param_5 + iVar5,
+37187	FUN_ram_00937974	Set		| iVar1,param_3,DAT_ram_0201380c)
+39832	FUN_ram_0093a004	TxnSetVA	0x1d00c2=m0x1dg6f2->0x820eb0b0[23:16] 0x1d00c0=m0x1dg6f0->0x820eb0b0[31:31]	| 4,iVar2 + 0x1d00c2,param_3,iVar2 + 0x1d00c0,1,DAT_ram_02013828)
+40299	FUN_ram_0093a5ee	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x170240=m0x17g18f0->0x820e4274[28:24]	| param_1 * 0x10000 + 0x170240,param_2,DAT_ram_0201380c)
+40314	FUN_ram_0093a60a	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x170280=m0x17g20f0->0x820e427c[28:24]	| param_1 * 0x10000 + 0x170280,param_2,DAT_ram_0201380c)
+40329	FUN_ram_0093a626	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1702c0=m0x17g22f0->0x820e4284[28:24]	| param_1 * 0x10000 + 0x1702c0,param_2,DAT_ram_0201380c)
+40521	FUN_ram_0093a7c2	SetVA	0x1405a1=m0x14g45f1->0x820c0324[11:0] 0x1405a0=m0x14g45f0->0x820c0324[27:16]	| 4,iVar1 + 0x1405a1,*(undefined2 *)((int)param_3 + 10),iVar1 + 0x1405a0,
+40524	FUN_ram_0093a7c2	Set	0x1405c0=m0x14g46f0->0x820c0328[11:0]	| iVar1 + 0x1405c0,*(undefined2 *)(param_3 + 2),DAT_ram_0201380c)
+45642	FUN_ram_0093ff8c	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1200a0=m0x12g5f0->0x820e5044[31:31]	| param_1 * 0x10000 + 0x1200a0,1,DAT_ram_0201380c)
+45683	FUN_ram_0093ffb2	TxnSetVA	0x1201a1=m0x12g13f1->0x820e5204[27:27] 0x1201a2=m0x12g13f2->0x820e5204[26:24]	| 4,iVar1 + 0x1201a1,param_3 != 0,iVar1 + 0x1201a2,uVar2,DAT_ram_02013828)
+45684	FUN_ram_0093ffb2	Set	0x120360=m0x12g27f0->0x820e52a0[7:0] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_1 + 0x120360 + param_2 * 0x10000,uStack_24,DAT_ram_0201380c)
+46130	FUN_ram_00940400	Set	0x1409a0=m0x14g77f0->0x820c1000[0:0]	| 0x1409a0,param_1,DAT_ram_0201380c)
+46297	FUN_ram_009405ca	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_4 * 0x10000 + 0x664,param_1 != 0,DAT_ram_0201380c)
+46299	FUN_ram_009405ca	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_4 * 0x10000 + 0x663,param_3,DAT_ram_0201380c)
+46477	FUN_ram_00940624	Set		| 0x7e1,param_2,DAT_ram_0201380c)
+46480	FUN_ram_00940624	Set	0x107e1=m0x1g63f1->0x820f3348[15:12]	| 0x107e1,param_2,DAT_ram_0201380c)
+46622	FUN_ram_00940f26	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_4 * 0x10000 + 0x781,param_2,DAT_ram_0201380c)
+46637	FUN_ram_00940f56	GetW	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 * 0x10000 + 0x640,param_1,DAT_ram_02013804), iVar1 != 0))
+46704	FUN_ram_00941010	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x710,param_1 != 0,DAT_ram_0201380c)
+46715	FUN_ram_00941028	Set		| param_1 + 0x70d,param_2,DAT_ram_0201380c)
+46716	FUN_ram_00941028	Set		| param_1 + 0x983,param_2,DAT_ram_0201380c)
+46717	FUN_ram_00941028	Set		| param_1 + 0x982,param_2,DAT_ram_0201380c)
+46728	FUN_ram_00941054	Set		| param_3 + 0x980,param_1,DAT_ram_0201380c)
+46729	FUN_ram_00941054	Set	0x170345=m0x17g26f5->0x820e402c[4:0]	| param_3 + 0x170345,param_2,DAT_ram_0201380c)
+46730	FUN_ram_00941054	Set	0x20082=m0x2g4f2->0x820e2058[12:8]	| param_3 + 0x20082,param_2,DAT_ram_0201380c)
+46761	FUN_ram_009410bc	GetW	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x860,param_1,DAT_ram_02013804)
+46799	FUN_ram_0094112e	Set		| param_6 + 0x880,param_1,DAT_ram_0201380c)
+46800	FUN_ram_0094112e	Set		| param_6 + 0x8a4,param_2,DAT_ram_0201380c)
+46801	FUN_ram_0094112e	Set		| param_6 + 0x8a2,param_3,DAT_ram_0201380c)
+46802	FUN_ram_0094112e	Set		| param_6 + 0x8a1,param_4,DAT_ram_0201380c)
+46803	FUN_ram_0094112e	Set		| param_6 + 0x8a0,param_5,DAT_ram_0201380c)
+46827	FUN_ram_00941186	Set		| param_2 + 0x943,0)
+46828	FUN_ram_00941186	Set		| param_2 + 0x942,0,DAT_ram_0201380c)
+46829	FUN_ram_00941186	Set		| param_2 + 0x941,0,DAT_ram_0201380c)
+46830	FUN_ram_00941186	Set		| param_2 + 0x940,0,DAT_ram_0201380c)
+46831	FUN_ram_00941186	Set		| param_2 + 0x961,0,DAT_ram_0201380c)
+46835	FUN_ram_00941186	Set		| param_2 + 0x943,1)
+46836	FUN_ram_00941186	Set		| param_2 + 0x942,1,DAT_ram_0201380c)
+46837	FUN_ram_00941186	Set		| param_2 + 0x941,0,DAT_ram_0201380c)
+46838	FUN_ram_00941186	Set		| param_2 + 0x940,0,DAT_ram_0201380c)
+46839	FUN_ram_00941186	Set		| param_2 + 0x961,0xc2,DAT_ram_0201380c)
+46842	FUN_ram_00941186	Set		| param_2 + 0x960,uVar1,DAT_ram_0201380c)
+47029	FUN_ram_009413ac	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x9a7,param_1 != 0,DAT_ram_0201380c)
+47039	FUN_ram_009413c2	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x9a6,param_1 != 0,DAT_ram_0201380c)
+47049	FUN_ram_009413d8	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x9a5,param_1 != 0,DAT_ram_0201380c)
+47337	FUN_ram_0094174a	Set	0x1409a1=m0x14g77f1->0x820c1000[10:10]	| 0x1409a1,1,DAT_ram_0201380c)
+47684	FUN_ram_00941a44	Set	0x11000a=m0x11g0f10->0x820cf000[17:17]	| 0x11000a,~param_1,DAT_ram_0201380c)
+47817	FUN_ram_00941ce6	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x20162=m0x2g11f2->0x820e2004[3:2]	| param_2 * 0x10000 + 0x20162,param_1,DAT_ram_0201380c)
+47830	FUN_ram_00941cfa	SetVA	0x1c0141=m0x1cg10f1->0x820b00a0[1:0] 0x1c0140=m0x1cg10f0->0x820b00a0[4:2]	| 4,0x1c0141,param_1,0x1c0140,param_2,DAT_ram_02013820)
+47863	FUN_ram_00941d22	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1200c1=m0x12g6f1->0x820e5090[7:0] 0x1200c1=m0x12g6f1->0x820e5090[7:0]	| param_5 * 0x10000 + 0x1200c1,param_2,0x1200c1,DAT_ram_0201380c)
+49440	FUN_ram_00942d98	Set	0x1c0181=m0x1cg12f1->0x820b00c0[26:26]	| 0x1c0181,1,DAT_ram_0201380c)
+49598	FUN_ram_0094305e	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120380=m0x12g28f0->0x820e5604[2:2]	| param_1 * 0x10000 + 0x120380 + param_2,param_3 != 0,DAT_ram_0201380c
+50117	FUN_ram_0094346a	TxnSetVA	0x120740=m0x12g58f0->0x820e5010[7:0] 0x120741=m0x12g58f1->0x820e5010[8:8]	| 4,iVar1 + 0x120740,param_2,iVar1 + 0x120741,1,DAT_ram_02013828)
+50335	FUN_ram_0094365c	TxnSetVA	0x12038c=m0x12g28f12->0x820e5604[26:26]	| 4,iVar4,3,0x12038c,1,DAT_ram_02013828)
+50351	FUN_ram_0094365c	Set		| iVar4 + -1,1,DAT_ram_0201380c)
+50355	FUN_ram_0094365c	TxnSetVA		| 4,iVar4 + 0xa35,0,iVar4 + 0xa36,*(undefined1 *)(param_1 + 9),
+50379	FUN_ram_0094365c	Set		| iVar4 + -0x2eb,1,DAT_ram_0201380c), iVar1 != 0)) {
+50447	FUN_ram_009437f4	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x12038b=m0x12g28f11->0x820e5604[21:20] 0x12038c=m0x12g28f12->0x820e5604[26:26]	| 4,param_1 * 0x10000 + 0x12038b,3,0x12038c,1,DAT_ram_02013828)
+50463	FUN_ram_0094382e	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x10000=m0x1g0f0->0x820f3000[8:8]	| 4,param_3 * 0x10000 + 0x680,param_1,param_3 * 0x10000 + 0x681,param_2,
+50519	FUN_ram_0094387c	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x12038a=m0x12g28f10->0x820e5604[0:0]	| param_2 * 0x10000 + 0x12038a,param_1,DAT_ram_0201380c)
+50990	FUN_ram_00943e50	GetW	0x150562=m0x15g43f2->0x820c8004[11:0]	| 0x150562,local_28 + 3,DAT_ram_02013804)
+51142	FUN_ram_00943f46	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1200e8=m0x12g7f8->0x820e5610[15:0]	| param_2 * 0x10000 + 0x1200e8,param_1,DAT_ram_0201380c)
+51285	FUN_ram_00944016	GetB	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1200c1=m0x12g6f1->0x820e5090[7:0]	| param_2 * 0x10000 + 0x1200c1,param_1,DAT_ram_02013800)
+51335	FUN_ram_0094405a	Set	0x20040=m0x2g2f0->0x820e2044[22:0] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 + 0x20040 + param_4 * 0x10000,param_2,DAT_ram_0201380c)
+51345	FUN_ram_00944072	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x10000=m0x1g0f0->0x820f3000[8:8]	| 4,param_3 * 0x10000,param_1 == 0,param_3 * 0x10000 + 1,param_2 == 0,
+51547	FUN_ram_0094439a	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x202a1=m0x2g21f1->0x820e2048[10:10] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x202a0=m0x2g21f0->0x820e2048[9:0]	| 4,param_1 * 0x10000 + 0x202a1,1,param_1 * 0x10000 + 0x202a0,0x4b,
+51597	FUN_ram_009443fc	Set		| iVar5,0,DAT_ram_0201380c)
+51598	FUN_ram_009443fc	Set		| iVar5 + -0x40,0,DAT_ram_0201380c)
+51599	FUN_ram_009443fc	Set		| iVar5 + -0x3f,1,DAT_ram_0201380c)
+51600	FUN_ram_009443fc	Set	0x200a0=m0x2g5f0->0x820e2060[1:1]	| iVar5 + -0x200a0,1,DAT_ram_0201380c)
+51601	FUN_ram_009443fc	Set	0x150982=m0x15g76f2->?	| iVar5 + 0x150982,0,DAT_ram_0201380c)
+51607	FUN_ram_009443fc	Set		| iVar5 + -0x60,uVar3,DAT_ram_0201380c)
+51612	FUN_ram_009443fc	Set	0x150986=m0x15g76f6->?	| iVar5 + 0x150986,1,DAT_ram_0201380c)
+51625	FUN_ram_009443fc	Set	0x20026=m0x2g1f6->0x820e2040[3:3]	| 0x20026,1,DAT_ram_0201380c)
+51626	FUN_ram_009443fc	Set	0x30026=m0x3g1f6->0x820f2040[3:3]	| 0x30026,1,DAT_ram_0201380c)
+51700	FUN_ram_0094465a	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x170a45=m0x17g82f5->0x820e4000[14:14]	| param_2 * 0x10000 + 0x170a45,param_1 != 0,DAT_ram_0201380c)
+51745	FUN_ram_0094467c	Set		| iVar1,param_2,DAT_ram_0201380c)
+51763	FUN_ram_009446d6	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x20022=m0x2g1f2->0x820e2040[2:2]	| param_1 + param_3 * 0x10000 + 0x20022,param_2,DAT_ram_0201380c)
+51797	FUN_ram_009446fc	SetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x170a63=m0x17g83f3->0x820e4004[30:30] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x170a49=m0x17g82f9->0x820e4000[22:22]	| 4,param_3 * 0x10000 + 0x170a63,param_1,param_3 * 0x10000 + 0x170a49,
+51849	FUN_ram_00944772	GetB	0x20022=m0x2g1f2->0x820e2040[2:2] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + 0x20022 + param_1 * 0x10000,param_3,DAT_ram_02013800)
+51866	FUN_ram_0094478a	Set3VA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x20041=m0x2g2f1->0x820e2044[29:24] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x20040=m0x2g2f0->0x820e2044[22:0]	| 6,param_1 * 0x10000 + 0x20041,param_2,1,param_1 * 0x10000 + 0x20040,
+51893	FUN_ram_009447bc	GetD	0x10000=m0x1g0f0->0x820f3000[8:8] 0x20028=m0x2g1f8->0x820e2040[12:8]	| param_2 * 0x10000 + 0x20028,&uStack_24,DAT_ram_02013808)
+51905	FUN_ram_009447bc	GetB	0x10000=m0x1g0f0->0x820f3000[8:8]	| iVar1 + param_2 * 0x10000,param_4,DAT_ram_02013800)
+52775	FUN_ram_009452b2	Set	0x140828=m0x14g65f8->0x820c020c[1:1]	| 0x140828,param_1,DAT_ram_0201380c)
+52856	FUN_ram_00945336	Set	0xa0000=m0xag0f0->0x820ea000[31:31]	| 0xa0000,1,DAT_ram_0201380c)
+52858	FUN_ram_00945336	Set	0xa0020=m0xag1f0->0x820ea004[28:28]	| 0xa0020,1,DAT_ram_0201380c), iVar2 == 0)) &&
+52859	FUN_ram_00945336	Set	0xa0021=m0xag1f1->0x820ea004[27:27]	| 0xa0021,1,DAT_ram_0201380c), iVar2 == 0 &&
+52860	FUN_ram_00945336	TxnSetVA	0xa0001=m0xag0f1->0x820ea000[30:28] 0xa0002=m0xag0f2->0x820ea000[27:27]	| 4,0xa0001,1,0xa0002,1,DAT_ram_02013828), iVar2 == 0)))) &&
+52861	FUN_ram_00945336	TxnSetVA	0xa0006=m0xag0f6->0x820ea000[7:3] 0xa0007=m0xag0f7->0x820ea000[2:2]	| 4,0xa0006,4,0xa0007,1,DAT_ram_02013828), iVar2 == 0 &&
+52877	FUN_ram_00945336	Set		| iVar3 + -6,1,DAT_ram_0201380c)
+52885	FUN_ram_00945336	Set		| iVar3 + 0x1a,1,DAT_ram_0201380c)
+52889	FUN_ram_00945336	Set		| iVar3 + 0x1b,1,DAT_ram_0201380c)
+52893	FUN_ram_00945336	TxnSetVA		| 4,iVar3 + -5,1,iVar3 + -4,1,DAT_ram_02013828)
+52897	FUN_ram_00945336	TxnSetVA		| 4,iVar3,4,iVar3 + 1,1,DAT_ram_02013828)
+52996	FUN_ram_009455a6	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 * 0x10000 + (param_1 + 0x901f) * 0x20,param_2 != 0,DAT_ram_0201380c)
+53009	FUN_ram_009455c0	TxnSetVA	0x1203e4=m0x12g31f4->0x820e5400[15:14] 0x1203e5=m0x12g31f5->0x820e5400[13:11]	| 4,iVar1 + 0x1203e4,param_2,iVar1 + 0x1203e5,param_3,DAT_ram_02013828)
+53030	FUN_ram_009455ea	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + param_1 * 0x10000 + 4,0,DAT_ram_0201380c)
+53045	FUN_ram_009455ea	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + param_1 * 0x10000 + 4,param_5,DAT_ram_0201380c)
+53198	FUN_ram_0094589a	Set		| iVar2 + param_6,param_2,DAT_ram_0201380c)
+53200	FUN_ram_0094589a	Set		| iVar2 + 0x80 + param_6,param_5,DAT_ram_0201380c), iVar1 == 0)) {
+53201	FUN_ram_0094589a	TxnSetVA	0x20084=m0x2g4f4->0x820e2058[28:24] 0x20083=m0x2g4f3->0x820e2058[20:16]	| 4,param_6 + 0x20084,param_4,param_6 + 0x20083,param_4,
+53610	FUN_ram_00945bfe	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x10000=m0x1g0f0->0x820f3000[8:8]	| 4,param_3 * 0x10000,param_1 == 0,param_3 * 0x10000 + 1,param_2 == 0,
+53623	FUN_ram_00945c18	TxnSetVA	0x40120=m0x4g9f0->0x820e705c[25:25] 0x40121=m0x4g9f1->0x820e705c[24:24] 0x40122=m0x4g9f2->0x820e705c[23:16]	| 10,param_6 + 0x40120,param_2,param_6 + 0x40121,param_1,param_6 + 0x40122,
+53770	FUN_ram_00945e06	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120380=m0x12g28f0->0x820e5604[2:2]	| param_1 * 0x10000 + 0x120380 + param_4,0,DAT_ram_0201380c)
+53772	FUN_ram_00945e06	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120380=m0x12g28f0->0x820e5604[2:2]	| param_2 * 0x10000 + 0x120380 + param_4,1,DAT_ram_0201380c)
+53965	FUN_ram_0094606a	Set	0x140b23=m0x14g89f3->0x820c2008[11:8]	| 0x140b23,param_2,DAT_ram_0201380c)
+53996	FUN_ram_009460e4	TxnSetVA		| 4,iVar2,0x70,iVar2 + -1,1000,DAT_ram_02013828), iVar1 == 0)))
+54054	FUN_ram_00946156	Set	0x20029=m0x2g1f9->0x820e2040[15:15]	| 0x20029,param_1,DAT_ram_0201380c)
+55738	FUN_ram_00947454	Set	0x110004=m0x11g0f4->0x820cf000[10:10]	| 0x110004,param_1,DAT_ram_0201380c)
+55748	FUN_ram_00947466	Set	0x110005=m0x11g0f5->0x820cf000[9:9]	| 0x110005,param_1,DAT_ram_0201380c)
+55758	FUN_ram_00947478	Set	0x110006=m0x11g0f6->0x820cf000[8:8]	| 0x110006,param_1,DAT_ram_0201380c)
+55768	FUN_ram_0094748a	Set	0x110007=m0x11g0f7->0x820cf000[2:2]	| 0x110007,param_1,DAT_ram_0201380c)
+55778	FUN_ram_0094749c	Set	0x110008=m0x11g0f8->0x820cf000[1:1]	| 0x110008,param_1,DAT_ram_0201380c)
+55788	FUN_ram_009474ae	Set	0x110009=m0x11g0f9->0x820cf000[0:0]	| 0x110009,param_1,DAT_ram_0201380c)
+55835	FUN_ram_0094754a	Set	0x11000a=m0x11g0f10->0x820cf000[17:17]	| 0x11000a,0xfffffffe,DAT_ram_0201380c)
+56325	FUN_ram_00947cfe	GetB		| iVar3,&local_21,DAT_ram_02013800)
+56333	FUN_ram_00947cfe	Set		| iVar3,local_21,DAT_ram_0201380c)
+56565	FUN_ram_00948020	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1d0042=m0x1dg2f2->0x820eb0a8[3:2]	| param_3 * 0x10000 + 0x1d0042 + param_1 * 0x20,param_2,
+56601	FUN_ram_00948082	GetB	0x1c0003=m0x1cg0f3->0x820b0000[27:27]	| param_1 * 0x60 + 0x1c0003,param_2,DAT_ram_02013800)
+56617	FUN_ram_009480a4	GetB	0x1c0241=m0x1cg18f1->0x820b0100[0:0]	| param_1 * 0xc0 + 0x1c0241,&uStack_11,DAT_ram_02013800)
+56631	FUN_ram_009480c8	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1d0541=m0x1dg42f1->0x820eb1a8[25:0] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x1d0540=m0x1dg42f0->0x820eb1a8[31:31]	| 4,param_2 * 0x10000 + 0x1d0541,param_1,param_2 * 0x10000 + 0x1d0540,
+56797	FUN_ram_0094823a	GetW	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + (param_1 + 0x9032) * 0x20,param_3,
+56843	FUN_ram_009482ce	Set	0x1c0188=m0x1cg12f8->0x820b00c0[5:5]	| 0x1c0188,param_1,DAT_ram_0201380c)
+56844	FUN_ram_009482ce	TxnSetVA	0x1c0124=m0x1cg9f4->0x820b009c[5:0] 0x1c0123=m0x1cg9f3->0x820b009c[19:16] 0x1c0122=m0x1cg9f2->0x820b009c[23:20]	| 10,0x1c0124,DAT_ram_0204c52a,0x1c0123,DAT_ram_0204c52b,0x1c0122,
+56899	FUN_ram_009483d2	Set	0x1c0240=m0x1cg18f0->0x820b0100[1:1]	| param_1 * 0xc0 + 0x1c0240,1,DAT_ram_0201380c)
+56920	FUN_ram_009483fe	Set	0x1c0025=m0x1cg1f5->0x820b0004[21:21]	| param_1 * 0x60 + 0x1c0025,1,DAT_ram_0201380c), iVar1 == 0)))) {
+56955	FUN_ram_00948498	GetB	0x1c0002=m0x1cg0f2->0x820b0000[28:28]	| param_2 * 0x60 + 0x1c0002,&cStack_11,DAT_ram_02013800)
+57475	FUN_ram_00948b0c	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x10000=m0x1g0f0->0x820f3000[8:8]	| 4,param_1 * 0x10000 + iVar1,param_3,iVar1 + param_1 * 0x10000 + 1,
+58015	FUN_ram_00949408	GetB	0x140b23=m0x14g89f3->0x820c2008[11:8]	| 0x140b23,&local_21,param_3,DAT_ram_02013800)
+58017	FUN_ram_00949408	GetB	0x140b22=m0x14g89f2->0x820c2008[16:16]	| 0x140b22,&local_22)
+58105	FUN_ram_009494e6	GetB	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1d0646=m0x1dg50f6->0x820eb1cc[5:0]	| param_1 * 0x10000 + 0x1d0646,&uStack_11,DAT_ram_02013800)
+58415	FUN_ram_0094a326	TxnSetVA	0x40060=m0x4g3f0->0x820e7018[0:0] 0x40061=m0x4g3f1->0x820e7018[10:8]	| 8,param_5 + 0x40060,param_1,iVar2 + param_5,param_2,param_5 + 0x40061,
+58430	FUN_ram_0094a368	TxnSetVA	0x1205e6=m0x12g47f6->0x820e53a0[18:17] 0x1205e7=m0x12g47f7->0x820e53a0[16:16] 0x1205e8=m0x12g47f8->0x820e53a0[15:12]	| 8,iVar1 + 0x1205e6,param_5,iVar1 + 0x1205e7,param_2 != 0,iVar1 + 0x1205e8,
+58599	FUN_ram_0094a4ba	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120805=m0x12g64f5->0x820e5100[10:10]	| param_2 * 0x10000 + 0x120805,param_1,DAT_ram_0201380c)
+58641	FUN_ram_0094a538	Set	0xe0860=m0xeg67f0->?	| iVar6 + -0xe0860,*(undefined4 *)(param_1 + 4),DAT_ram_0201380c)
+58645	FUN_ram_0094a538	Set	0xe085d=m0xeg66f29->?	| iVar6 + -0xe085d,7,DAT_ram_0201380c)
+58661	FUN_ram_0094a538	TxnSetVA	0xe0820=m0xeg65f0->? 0xe081f=m0xeg64f31->? 0xe081e=m0xeg64f30->?	| 6,iVar6 + -0xe0820,uVar4,iVar6 + -0xe081f,0,iVar6 + -0xe081e,1)
+58665	FUN_ram_0094a538	Set		| iVar6 + -0x5a,1,DAT_ram_0201380c)
+58691	FUN_ram_0094a538	Set		| iVar6 + 0x27,0,DAT_ram_0201380c)
+58696	FUN_ram_0094a538	Set		| iVar6,1,DAT_ram_0201380c)
+58734	FUN_ram_0094a70e	TxnSetVA	0x1201a5=m0x12g13f5->0x820e5204[17:17] 0x1201a6=m0x12g13f6->0x820e5204[23:18]	| 4,iVar1 + 0x1201a5,1,iVar1 + 0x1201a6,param_3,DAT_ram_02013828)
+58751	FUN_ram_0094a756	Set3VA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x10000=m0x1g0f0->0x820f3000[8:8]	| 6,iVar2 + param_1 * 0x10000,param_3,1,iVar2 + param_1 * 0x10000 + 1,
+58787	FUN_ram_0094a7ac	TxnSetVA	0x400e0=m0x4g7f0->0x820e701c[0:0] 0x400e1=m0x4g7f1->0x820e701c[1:1]	| 8,iVar1 + 0x400e0,*(undefined1 *)(param_1 + 0x25),iVar1 + 0x400e1,
+58847	FUN_ram_0094a836	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 * 0x10000 + (param_1 + 0x901f) * 0x20,param_2 != 0,
+58872	FUN_ram_0094a862	GetW	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 * 0x10000 + param_1 * 0x20 + iVar1,param_4,DAT_ram_02013804)
+58905	FUN_ram_0094a8a0	TxnSetVA		| 4,iVar1,param_4,iVar2,param_5,DAT_ram_02013828)
+58921	FUN_ram_0094a904	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x1203e4=m0x12g31f4->0x820e5400[15:14]	| param_3 * 0x10000 + 0x1203e4 + param_1 * 0x20,param_2,DAT_ram_0201380c
+58992	FUN_ram_0094a968	Set3VA		| 6,iVar4,&local_24,1,iVar3,&local_23,1)
+59002	FUN_ram_0094a968	TxnSetVA		| 4,iVar4,local_24,iVar3,local_23,DAT_ram_02013828)
+59067	FUN_ram_0094aae4	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 * 0x10000 + (param_2 + 0x9036) * 0x20,param_1,DAT_ram_0201380c
+59101	FUN_ram_0094ab1a	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120100=m0x12g8f0->0x820e5634[31:24] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x120101=m0x12g8f1->0x820e5634[22:0]	| 4,param_1 * 0x10000 + 0x120100,0xe,param_1 * 0x10000 + 0x120101,
+59793	FUN_ram_0094b2fa	Set	0x1208a0=m0x12g69f0->0x820e5160[31:31] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + 0x1208a0 + param_1 * 0x10000,param_3,DAT_ram_0201380c)
+59803	FUN_ram_0094b310	Set	0x120940=m0x12g74f0->0x820e5174[26:26] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + 0x120940 + param_1 * 0x10000,param_3,DAT_ram_0201380c)
+59813	FUN_ram_0094b326	Set	0x120ae1=m0x12g87f1->0x820e51a8[7:7] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + 0x120ae1 + param_1 * 0x10000,param_3,DAT_ram_0201380c)
+59823	FUN_ram_0094b33c	Set	0x120ac0=m0x12g86f0->0x820e51a4[7:0] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 + 0x120ac0 + param_1 * 0x10000,param_3,DAT_ram_0201380c)
+59856	FUN_ram_0094b40e	Set	0x1208aa=m0x12g69f10->0x820e5160[7:0]	| iVar2 + 0x1208aa,*param_2,DAT_ram_0201380c)
+59858	FUN_ram_0094b40e	Set	0x1208a9=m0x12g69f9->0x820e5160[15:8]	| iVar2 + 0x1208a9,param_2[1],DAT_ram_0201380c), iVar1 == 0)) &&
+59859	FUN_ram_0094b40e	Set	0x12094b=m0x12g74f11->0x820e5174[7:0]	| iVar2 + 0x12094b,param_2[2],DAT_ram_0201380c), iVar1 == 0 &&
+59860	FUN_ram_0094b40e	Set	0x1208a8=m0x12g69f8->0x820e5160[23:22]	| iVar2 + 0x1208a8,param_2[3],DAT_ram_0201380c), iVar1 == 0 &&
+59861	FUN_ram_0094b40e	Set	0x170ae4=m0x17g87f4->0x820e40fc[8:0]	| iVar2 + 0x170ae4,*(undefined2 *)(param_2 + 4),DAT_ram_0201380c
+59863	FUN_ram_0094b40e	Set	0x170ae3=m0x17g87f3->0x820e40fc[20:12]	| iVar2 + 0x170ae3,*(undefined2 *)(param_2 + 6),DAT_ram_0201380c),
+59865	FUN_ram_0094b40e	Set	0x170ae2=m0x17g87f2->0x820e40fc[21:21]	| iVar2 + 0x170ae2,*(undefined4 *)(param_2 + 8),DAT_ram_0201380c),
+59867	FUN_ram_0094b40e	Set	0x170ae1=m0x17g87f1->0x820e40fc[23:22]	| iVar2 + 0x170ae1,*(undefined4 *)(param_2 + 0xc),DAT_ram_0201380c
+59869	FUN_ram_0094b40e	Set	0x170ae0=m0x17g87f0->0x820e40fc[31:24]	| iVar2 + 0x170ae0,param_2[0x10],DAT_ram_0201380c), iVar1 == 0))))
+59890	FUN_ram_0094b4be	GetB	0x1208aa=m0x12g69f10->0x820e5160[7:0]	| iVar3 + 0x1208aa,param_2,DAT_ram_02013800)
+59892	FUN_ram_0094b4be	GetB	0x1208a9=m0x12g69f9->0x820e5160[15:8]	| iVar3 + 0x1208a9,param_2 + 1,DAT_ram_02013800), iVar1 == 0))
+59893	FUN_ram_0094b4be	GetB	0x12094b=m0x12g74f11->0x820e5174[7:0]	| iVar3 + 0x12094b,param_2 + 2,DAT_ram_02013800), iVar1 == 0))
+59894	FUN_ram_0094b4be	GetB	0x1208a8=m0x12g69f8->0x820e5160[23:22]	| iVar3 + 0x1208a8,param_2 + 3,DAT_ram_02013800), iVar1 == 0
+59895	FUN_ram_0094b4be	GetW	0x170ae4=m0x17g87f4->0x820e40fc[8:0]	| iVar3 + 0x170ae4,param_2 + 4,DAT_ram_02013804),
+59897	FUN_ram_0094b4be	GetW	0x170ae3=m0x17g87f3->0x820e40fc[20:12]	| iVar3 + 0x170ae3,param_2 + 6,DAT_ram_02013804), iVar1 == 0
+59898	FUN_ram_0094b4be	GetB	0x170ae2=m0x17g87f2->0x820e40fc[21:21]	| iVar3 + 0x170ae2,&bStack_21,DAT_ram_02013800),
+59901	FUN_ram_0094b4be	GetB	0x170ae1=m0x17g87f1->0x820e40fc[23:22]	| iVar3 + 0x170ae1,&bStack_21,DAT_ram_02013800)
+59904	FUN_ram_0094b4be	GetB	0x170ae0=m0x17g87f0->0x820e40fc[31:24]	| iVar3 + 0x170ae0,param_2 + 0x10,DAT_ram_02013800)
+59947	FUN_ram_0094b578	GetD		| iVar4,param_2 + 0x10,DAT_ram_02013808)
+59949	FUN_ram_0094b578	GetD		| iVar4 + 0x20,param_2 + 0x14,DAT_ram_02013808), iVar2 == 0)
+59997	FUN_ram_0094b69a	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120b40=m0x12g90f0->0x820e51b4[7:0]	| (uVar2 & 3) + param_1 * 0x10000 + 0x120b40 + (uVar2 >> 2) * 0x20,
+60028	FUN_ram_0094b6de	Set		| iVar5,uVar1,DAT_ram_0201380c)
+60039	FUN_ram_0094b6de	Set		| iVar5,(char)uVar1,DAT_ram_0201380c)
+60065	FUN_ram_0094b746	Set		| iVar2 + 0x42,param_2[1],DAT_ram_0201380c)
+60067	FUN_ram_0094b746	Set		| iVar2 + 0x41,param_2[2],DAT_ram_0201380c), iVar1 == 0)) &&
+60068	FUN_ram_0094b746	Set		| iVar2 + 0x40,*(undefined4 *)(param_2 + 4),DAT_ram_0201380c),
+60093	FUN_ram_0094b790	Set	0x12088c=m0x12g68f12->0x820e5050[15:8]	| param_2 + iVar2 + 0x12088c,uVar1,DAT_ram_0201380c)
+60147	FUN_ram_0094b840	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120ae0=m0x12g87f0->0x820e51a8[3:0]	| param_1 * 0x10000 + 0x120ae0,*param_2,DAT_ram_0201380c)
+60149	FUN_ram_0094b840	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120b20=m0x12g89f0->0x820e51b0[31:0]	| param_1 * 0x10000 + 0x120b20,*(undefined4 *)(param_2 + 4),
+60168	FUN_ram_0094b88a	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120ae0=m0x12g87f0->0x820e51a8[3:0]	| param_1 * 0x10000 + 0x120ae0,*param_2,DAT_ram_0201380c)
+60170	FUN_ram_0094b88a	GetD	0x10000=m0x1g0f0->0x820f3000[8:8] 0x120b20=m0x12g89f0->0x820e51b0[31:0]	| param_1 * 0x10000 + 0x120b20,param_2 + 4,DAT_ram_02013808),
+60338	FUN_ram_0094ba02	GetW	0x10000=m0x1g0f0->0x820f3000[8:8] 0x140562=m0x14g43f2->0x820c0004[11:0]	| param_1 * 0x10000 + 0x140562,&local_12,DAT_ram_02013804)
+60453	FUN_ram_0094bb3e	TxnSetVA	0x1400e2=m0x14g7f2->0x820c0090[1:1] 0x1400e1=m0x14g7f1->0x820c0090[22:16] 0x1400e0=m0x14g7f0->0x820c0090[23:23]	| 6,0x1400e2,iVar1 == 0,0x1400e1,1,0x1400e0,0)
+60497	FUN_ram_0094bcbc	Set	0x150100=m0x15g8f0->0x820c80b4[8:8]	| iVar2 + 0x150100,param_1,DAT_ram_0201380c)
+60621	FUN_ram_0094be3a	Set	0x40000=m0x4g0f0->0x820e7000[15:3]	| 0x40000,param_1,DAT_ram_0201380c)
+60647	FUN_ram_0094be50	TxnSetVA	0x400a4=m0x4g5f4->0x820e7054[31:30] 0x400a2=m0x4g5f2->0x820e7054[15:13]	| 10,param_7 + 0x400a4,param_2,param_7 + 0x400a2,param_3,
+60781	FUN_ram_0094bf08	TxnSetVA		| 4,iVar24,1,iVar24 + 2,1,DAT_ram_02013828)
+60782	FUN_ram_0094bf08	Set		| iVar24 + 0x2c0,1,DAT_ram_0201380c)
+60783	FUN_ram_0094bf08	Set		| iVar24 + 0xc1,0x1e,DAT_ram_0201380c)
+60784	FUN_ram_0094bf08	Set		| iVar24 + 0xc3,1,DAT_ram_0201380c)
+60785	FUN_ram_0094bf08	Set		| iVar24 + 0x200,0x80,DAT_ram_0201380c)
+60787	FUN_ram_0094bf08	Set		| iVar24 + 0x60,uVar2,DAT_ram_0201380c)
+60799	FUN_ram_0094bf08	Set		| iVar24 + 0xc2,1,DAT_ram_0201380c)
+60800	FUN_ram_0094bf08	Set	0x1fffe=m0x1g2047f30->?	| iVar24 + -0x1fffe,1,DAT_ram_0201380c)
+60806	FUN_ram_0094bf08	Set	0x150a65=m0x15g83f5->?	| iVar24 + 0x150a65,0,DAT_ram_0201380c)
+60807	FUN_ram_0094bf08	Set	0x150a47=m0x15g82f7->?	| iVar24 + 0x150a47,1,DAT_ram_0201380c)
+60808	FUN_ram_0094bf08	TxnSetVA	0x150b20=m0x15g89f0->0x820ca008[31:31] 0x150b21=m0x15g89f1->0x820ca008[17:17]	| 4,iVar24 + 0x150b20,0,iVar24 + 0x150b21,0xff)
+60977	FUN_ram_0094c25e	s70	0x10000=m0x1g0f0->0x820f3000[8:8]	| iVar1 + param_2 * 0x10000 + 0x3010000,param_3,DAT_ram_02013870)
+61002	FUN_ram_0094c25e	s70	0x10000=m0x1g0f0->0x820f3000[8:8]	| iVar1 + param_2 * 0x10000,param_3,DAT_ram_02013870)
+61055	FUN_ram_0094c306	s74		| iVar1,param_3,param_5,DAT_ram_02013874)
+61168	FUN_ram_0094c56e	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + (iVar1 + 0x16) * 0x20,param_3[3],
+61177	FUN_ram_0094c56e	Set		| iVar2,param_3[1],DAT_ram_0201380c)
+61187	FUN_ram_0094c56e	Set		| iVar2,param_3[2],DAT_ram_0201380c)
+61226	FUN_ram_0094c654	Set3VA		| 9,iVar3 + 0x2c0,&local_26,1,iVar3 + 0x2c1,&local_25,1,iVar3 + 0x2c2,
+61241	FUN_ram_0094c654	GetB	0x10000=m0x1g0f0->0x820f3000[8:8]	| (uVar1 & 3) + param_2 * 0x10000 + 0x560 + (uVar1 & 0x3fc) * 8,
+61289	FUN_ram_0094c754	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x170a00=m0x17g80f0->0x820e4008[8:0]	| param_2 * 0x10000 + 0x170a00,param_1,DAT_ram_0201380c)
+61311	FUN_ram_0094c772	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_1 * 0x10000 + (uVar2 + 6) * 0x20,param_3[5],
+61314	FUN_ram_0094c772	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_1 * 0x10000 + 0xc1 + uVar2 * 0x20,param_3[3],
+61317	FUN_ram_0094c772	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_1 * 0x10000 + 0xc2 + uVar2 * 0x20,param_3[4],
+61354	FUN_ram_0094c80c	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_1 * 0x10000 + iVar1 + param_2,param_3,DAT_ram_0201380c)
+61371	FUN_ram_0094c832	Set		| iVar1,1,DAT_ram_0201380c)
+61374	FUN_ram_0094c832	GetB		| iVar1,&local_21,DAT_ram_02013800)
+61382	FUN_ram_0094c832	Set	0x170b80=m0x17g92f0->0x820e40f8[17:0] 0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x20 + 0x170b80 + param_1 * 0x10000,param_3,DAT_ram_0201380c
+61456	FUN_ram_0094c932	TxnSetVA	0x400a4=m0x4g5f4->0x820e7054[31:30] 0x400a2=m0x4g5f2->0x820e7054[15:13] 0x400a1=m0x4g5f1->0x820e7054[12:8]	| 10,param_1 + 0x400a4,0,param_1 + 0x400a2,1,param_1 + 0x400a1,4,
+61458	FUN_ram_0094c932	TxnSetVA	0x40084=m0x4g4f4->0x820e7050[31:30] 0x40082=m0x4g4f2->0x820e7050[15:13] 0x40081=m0x4g4f1->0x820e7050[12:8]	| 10,param_1 + 0x40084,1,param_1 + 0x40082,2,param_1 + 0x40081,4,
+61489	FUN_ram_0094c9c4	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 + param_1 * 0x10000 + 4,param_2,DAT_ram_0201380c)
+61506	FUN_ram_0094c9d8	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x200c2=m0x2g6f2->0x820e2068[15:12]	| param_1 * 0x10000 + 0x200c2,param_2,DAT_ram_0201380c)
+61538	FUN_ram_0094c9ee	Set		| uVar3 + (uVar1 + 0x1007) * 0x20,uVar2,DAT_ram_0201380c)
+61552	FUN_ram_0094ca2e	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x200a1=m0x2g5f1->0x820e2060[2:2] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x200a0=m0x2g5f0->0x820e2060[1:1]	| 4,param_3 * 0x10000 + 0x200a1,param_1,param_3 * 0x10000 + 0x200a0,
+61636	FUN_ram_0094caa4	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_3 * 0x10000 + (param_1 + 0xb80d) * 0x20,param_2,DAT_ram_0201380c
+63691	FUN_ram_0094ecfe	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x20161=m0x2g11f1->0x820e2004[1:1] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x20160=m0x2g11f0->0x820e2004[0:0]	| 4,param_1 * 0x10000 + 0x20161,0,param_1 * 0x10000 + 0x20160,0,DAT_ram_02013828
+64492	FUN_ram_009501ec	GetB	0x140b23=m0x14g89f3->0x820c2008[11:8]	| 0x140b23,&bStack_19,DAT_ram_02013800)
+64503	FUN_ram_009501ec	Set	0x140b23=m0x14g89f3->0x820c2008[11:8]	| 0x140b23,param_1,DAT_ram_0201380c)
+73739	FUN_ram_009579c2	Set		| iVar1,0x12,DAT_ram_0201380c)
+73742	FUN_ram_009579c2	Set		| iVar1 + -0x30,0,DAT_ram_0201380c)
+73743	FUN_ram_009579c2	Set		| iVar1 + -0x31,0,DAT_ram_0201380c)
+73744	FUN_ram_009579c2	Set		| iVar1 + -0x32,0,DAT_ram_0201380c)
+78369	FUN_ram_0095b2cc	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x711,param_1 != 0,DAT_ram_0201380c)
+81506	FUN_ram_0095f20c	TxnSetVA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x202a1=m0x2g21f1->0x820e2048[10:10] 0x10000=m0x1g0f0->0x820f3000[8:8] 0x202a0=m0x2g21f0->0x820e2048[9:0]	| 4,param_3 * 0x10000 + 0x202a1,param_1 != 0,param_3 * 0x10000 + 0x202a0,param_2
+90895	FUN_ram_00968500	SetVA	0x1400c1=m0x14g6f1->0x820c00ac[15:0] 0x1400c0=m0x14g6f0->0x820c00ac[31:16]	| 4,0x1400c1,param_1,0x1400c0,param_2,DAT_ram_02013820)
+90905	FUN_ram_00968520	Set	0x150b00=m0x15g88f0->0x820c8254[31:31]	| 0x150b00,param_1,DAT_ram_0201380c)
+91124	FUN_ram_00968962	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x860,param_1,DAT_ram_0201380c)
+91200	FUN_ram_00968a14	Set	0x230022=m0x23g1f2->0x820cd004[15:3]	| 0x230022,param_1,DAT_ram_0201380c)
+91210	FUN_ram_00968a28	GetB	0x230001=m0x23g0f1->0x820cd000[23:23]	| 0x230001,param_1,DAT_ram_02013800)
+91234	FUN_ram_00968a5a	Set3VA		| 6,uVar2,param_1,1,uVar1,param_2,1)
+93947	FUN_ram_0096b1c2	GetD	0x10000=m0x1g0f0->0x820f3000[8:8] 0x240080=m0x24g4f0->0x83080040[31:0]	| param_1 * 0x10000 + 0x240080,param_2,DAT_ram_02013808)
+93960	FUN_ram_0096b1d8	Set	0x460007=m0x46g0f7->0x830af014[12:8]	| 0x460007,param_2,DAT_ram_0201380c)
+93961	FUN_ram_0096b1d8	Set	0x3a0160=m0x3ag11f0->0x830a5028[7:4]	| 0x3a0160,param_2,DAT_ram_0201380c)
+94347	FUN_ram_0096b588	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0xa0004=m0xag0f4->0x820ea000[11:11]	| param_1 * 0x10000 + 0xa0004,param_2,DAT_ram_0201380c)
+94400	FUN_ram_0096b626	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0xa0003=m0xag0f3->0x820ea000[13:12]	| param_1 * 0x10000 + 0xa0003,param_2,DAT_ram_0201380c)
+94417	FUN_ram_0096b63e	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0xa0005=m0xag0f5->0x820ea000[10:9]	| param_1 * 0x10000 + 0xa0005,param_2,DAT_ram_0201380c)
+94916	FUN_ram_0096b9f8	Set	0x13801=m0x1g448f1->?	| (param_1 + 0x13801) * 0x20,param_2,DAT_ram_0201380c)
+94938	FUN_ram_0096ba08	Set		| iVar1,param_2,DAT_ram_0201380c)
+94951	FUN_ram_0096ba30	Set	0x13810=m0x1g448f16->?	| (param_1 + 0x13810) * 0x20,param_2,DAT_ram_0201380c)
+94966	FUN_ram_0096ba48	Set	0x270201=m0x27g16f1->0x830a2030[27:27]	| param_1 * 0x20 + 0x270201,param_2,DAT_ram_0201380c)
+94999	FUN_ram_0096ba64	Set	0x260000=m0x26g0f0->0x830af04c[5:5]	| 0x260000,1,DAT_ram_0201380c)
+95000	FUN_ram_0096ba64	Set	0x260001=m0x26g0f1->0x830af04c[8:6]	| 0x260001,4,DAT_ram_0201380c)
+95006	FUN_ram_0096ba64	Set	0x270000=m0x27g0f0->0x830a5000[0:0]	| 0x270000,1,DAT_ram_0201380c)
+95012	FUN_ram_0096ba64	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x240060=m0x24g3f0->0x83080014[13:13]	| param_2 * 0x10000 + 0x240060,1,DAT_ram_0201380c)
+95015	FUN_ram_0096ba64	Set	0x260060=m0x26g3f0->0x830af0e8[0:0]	| 0x260060,1,DAT_ram_0201380c)
+95074	FUN_ram_0096bc1c	GetD	0x1380d=m0x1g448f13->?	| (param_2 + 0x1380d) * 0x20,&uStack_14,DAT_ram_02013808)
+95120	FUN_ram_0096bc8e	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x280020=m0x28g1f0->0x820e9014[31:31]	| param_2 * 0x10000 + 0x280020,1,DAT_ram_0201380c)
+95137	FUN_ram_0096bcaa	Set	0x10000=m0x1g0f0->0x820f3000[8:8] 0x280020=m0x28g1f0->0x820e9014[31:31]	| param_2 * 0x10000 + 0x280020,0,DAT_ram_0201380c)
+95206	FUN_ram_0096bd20	Set	0x260000=m0x26g0f0->0x830af04c[5:5]	| 0x260000,1,DAT_ram_0201380c)
+95207	FUN_ram_0096bd20	Set	0x260001=m0x26g0f1->0x830af04c[8:6]	| 0x260001,4,DAT_ram_0201380c)
+95208	FUN_ram_0096bd20	Set	0x260002=m0x26g0f2->0x830af04c[3:0]	| 0x260002,param_4,DAT_ram_0201380c)
+95229	FUN_ram_0096bd64	GetD	0x13004=m0x1g384f4->?	| (param_3 + 0x13004) * 0x20,param_4,DAT_ram_02013808)
+95237	FUN_ram_0096bd64	GetD	0x13004=m0x1g384f4->?	| (uVar2 + 0x13004) * 0x20,&iStack_24,DAT_ram_02013808)
+106072	FUN_ram_e027acce	Set3VA	0x10000=m0x1g0f0->0x820f3000[8:8] 0x10000=m0x1g0f0->0x820f3000[8:8]	| 6,param_3 * 0x10000 + 0x680,param_1,1,param_3 * 0x10000 + 0x681,param_2,1)
+106082	FUN_ram_e027acf2	Set	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x711,param_1 != 0,DAT_ram_0201380c)
+106136	FUN_ram_e027ad58	GetB	0x10000=m0x1g0f0->0x820f3000[8:8]	| param_2 * 0x10000 + 0x711,param_1 + 0x28,DAT_ram_02013800)
+106718	FUN_ram_e027b734	Set	0xc0021=m0xcg1f1->0x820e0008[0:0]	| 0xc0021,0,DAT_ram_0201380c)
+106719	FUN_ram_e027b734	Set	0xd0021=m0xdg1f1->0x820f0008[0:0]	| 0xd0021,0,DAT_ram_0201380c)

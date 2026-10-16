@@ -7,7 +7,7 @@ Bits 30+29 give ÷8, which has never decoded.
 Sources:
 - work/decomp/all.c (RAM 2026), rom_all.c, all2022.c;
 - work/dis/ram_0_00915000.txt (`dis`);
-- work/crmap;
+- data/crmap;
 - snapshots work/phydump/wide_*.bin;
 - the MT7996 reference work/ext/w1700k/src/include/hw/mt7996/*.h;
 - BirriaSDR.

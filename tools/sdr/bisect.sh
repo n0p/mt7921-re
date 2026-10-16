@@ -30,7 +30,7 @@ print(f\"$1 obw20={d['obw20_mhz']:<6} obw99={d['obw99_mhz']:<6} peak={d['peak_db
 cap() { $H "cd /tmp/mt7921sdr && python3 -I psd.py $F 0.5 31.25 40 TX/RX0 x" 2>/dev/null < /dev/null | grep '^{'; }
 
 cap | summ "stock"
-python3 -c "import json; [print(a, v) for a, v in json.load(open('work/phydump/narrow_profiles.json'))['$W'].items()]" |
+python3 -c "import json; [print(a, v) for a, v in json.load(open('tools/guest/narrow_profiles.json'))['$W'].items()]" |
 while read -r a v; do
 	old=$($G "cd /root/fwre; P=\$(cat /sys/class/net/wlx00c0cab7962a/phy80211/name); python3 fwdbg.py \$P read $a 1 | cut -d' ' -f2;
 	          python3 fwdbg.py \$P write $a $v > /dev/null" 2>/dev/null < /dev/null)

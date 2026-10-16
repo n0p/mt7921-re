@@ -3,7 +3,7 @@
 # Usage: measure.sh <freq MHz> <width 20|10|5> <phase>...   phase: off | stock | profile
 #   off     : no TX
 #   stock   : 6 Mbps injection with the stock 2026 registers
-#   profile : same, with work/phydump/narrow_profiles.json[<width>] applied (restored afterwards)
+#   profile : same, with tools/guest/narrow_profiles.json[<width>] (in the guest: /root/fwre) applied (restored afterwards)
 # Output: one JSON line per phase (tools/sdr/psd.py) on stdout. Env GAP_MS: frame spacing (default 2 ms).
 set -u
 cd "$(dirname "$0")/../.."

@@ -34,7 +34,7 @@ f(0x806de6, "connAfeInitPulse", "CONN AFE init pulse sequence on 0x7c003000/04/0
 
 # ---- GCI register-field layer (crmap, notes/05) --------------------------------------------------------------------
 f(0x826aac, "gciModuleIfcInit", "Fills the module interface array DLM 0x02014f04 + 4*module (0x5c modules): base "
-  "addresses and field tables per module (notes/05, work/crmap).")
+  "addresses and field tables per module (notes/05, data/crmap).")
 f(0x82693a, "gciAccessorInit", "Fills the GCI accessor table DLM 0x02013800..0x0201388c (MT7996 'FIT').")
 f(0x826860, "gciGetModuleIfc", "GetChipModuleIfc(module) = *(gp + 73476 + 4*module); module < 92 (accessor +0x84).")
 f(0x826b70, "gciSet", "Set(selector, value): one read-modify-write (accessor +0x0c). Selector = module<<16 | group<<5 | "

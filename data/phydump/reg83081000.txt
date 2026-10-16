@@ -1,0 +1,6 @@
+tx=off  obw20=17.1 obw99=16.26 peak=5.6 burst_us=267 bursts=1 duty=0%
+tx=off 0x83081000=0xd0000000  obw20=17.1 obw99=16.29 peak=5.5 burst_us=167 bursts=2 duty=0%
+tx=on 0x83081000=0xd0000000  obw20=17.1 obw99=16.32 peak=4.4 burst_us=0 bursts=0 duty=0%
+tx=off 0x83081000=0xb0000000  obw20=17.31 obw99=16.29 peak=4.1 burst_us=167 bursts=2 duty=0%
+tx=on 0x83081000=0xb0000000  obw20=17.1 obw99=16.29 peak=4.1 burst_us=300 bursts=2 duty=1%
+tx=on 0x83081000=0xf0000000  obw20=17.34 obw99=16.32 peak=4.4 burst_us=300 bursts=1 duty=0%

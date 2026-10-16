@@ -19,7 +19,7 @@
 - **ILM is not writable at runtime, not even from the MCU.** The write faulted the firmware and the driver reset the
   device. ILM changes must therefore be made at build time. DLM, region 3 and MMIO are writable at runtime.
 
-## PHY/RF register differential, fw 2026, monitor 5180 MHz (work/phydump/, tools/phydiff.py)
+## PHY/RF register differential, fw 2026, monitor 5180 MHz (diffs in data/phydump/, tools/phydiff.py)
 - 57 PHY/RF 4 KB pages referenced by firmware/ROM. 10 MHz and 5 MHz configurations are almost identical.
 - (Retracted) `0x830003ec[9:8]` is NOT a BW field. It varies between runs at the same width.
 - The large `0x830076xx/78xx/0x8300axxx` (WF0) and `0x830176xx/0x8301axxx` (WF1) differences are calibration
@@ -35,7 +35,7 @@
   `0x83086010` 0x013c013c → 0x009e009e (10) → 0x004f004f (5), which halves exactly;
   `0x83081000` 0x9… → 0xd… (10) → 0xf… (5). Also 0x830882ac, 0x8308829c, 0x83088394, 0x83080000, 0x8300d06c, …
 - Profiles (2022 narrow value where 2026 keeps the 20 MHz value, excluding cal/volatile registers):
-  work/phydump/narrow_profiles.json (10 MHz: 35 regs, 5 MHz: 19 regs).
+  tools/guest/narrow_profiles.json (10 MHz: 35 regs, 5 MHz: 19 regs).
 - Live two-card test (tools/guest/narrow_test.sh, 5180 MHz, 5 dBm, 300 frames, 6 Mbps):
   base 300/300 · profile on TX only 0/300 · profile on both 0/300 · restored 300/300.
   Writes persist (checked after 5 s). The profile changes the TX, but the profiled RX still decodes ambient 20 MHz
@@ -74,7 +74,7 @@
 ## Rig incidents and gotchas
 - Reading 0x80xxxxxx pages through the MCU debug command faults the MCU. The resulting driver-reset storm plus
   concurrent debug commands corrupted an mt76 list and wedged the guest kernel (RCU stall). Fixed with QEMU
-  `system_reset`. Safe snapshot pages: work/phydump/wide_pages_safe.txt (0x8102, 0x820c–0x820f, 0x83).
+  `system_reset`. Safe snapshot pages: tools/guest/wide_pages.txt (0x8102, 0x820c–0x820f, 0x83).
 - After a guest reboot the mt7921 stack must be loaded with tools/guest/loadstack.sh (/root/stackok, in order).
   /lib/modules has mixed builds that fail with "disagrees about version of symbol".
 - Guest /bin/sh is dash (no `\x` in printf). Local shell is zsh (no word splitting of `$VAR` commands).
@@ -167,7 +167,7 @@
 
 ## 2026-10-15: narrow rate codes in the PHY bandwidth field, and the clock-mode register
 - Static RE (notes/05, notes/06): the ROM has MT7996's register-field ("GCI") layer, with 1114 registers decoded in
-  work/crmap/. MT7921's TICKCR0 is **0x820b00a0** (WFSYS_ON at 0x820b0000): [1:0] WLAN_CLK_MODE, [4:2] LMAC_1X_MODE.
+  data/crmap/. MT7921's TICKCR0 is **0x820b00a0** (WFSYS_ON at 0x820b0000): [1:0] WLAN_CLK_MODE, [4:2] LMAC_1X_MODE.
   Measured on card B: 0 at cbw 0, **0x5 at cbw 4, 0xa at cbw 5**. The firmware already sets it, and the demodulator
   still decodes 20 MHz there, so on MT7921 it is a MAC/WLAN tick scaler, not the demodulator clock. The ICAP 40 Msps
   clock is unaffected: the earlier card-B capture decoded at exactly 5 MHz.
