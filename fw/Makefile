@@ -1,6 +1,6 @@
 # Instrumented MT7961 (MT7921) WM firmware build.
 #   make            -> out/WIFI_RAM_CODE_MT7961_1.bin (stock image + hooks, checksums fixed)
-#   make install    -> copy to the test guest and re-probe the cards
+#   make install    -> copy the image and build/hooks.nm to the test guest (/root/fwre) and re-probe the cards
 #   make restore    -> put the stock image back in the guest
 #   make verify     -> check region PDA checksums and file crc of the output
 #   make OUTBAND=1  -> also apply patches/outband.def (sniffer "outband" MHz override, notes/04-2g3-tuning.md)
@@ -69,6 +69,9 @@ verify: $(OUT)
 
 install: $(OUT)
 	$(GUEST) 'mkdir -p /root/fwre && cat > /root/fwre/WIFI_RAM_CODE_MT7961_1.instr.bin' < $(OUT)
+	# the hook addresses of this build: the nodes (nbmesh, p11node, nbprep.py, nbrxd.py) write iq_cfg / iq_stat
+	# through them, so a stale copy would make them write the wrong MCU memory
+	$(GUEST) 'cat > /root/fwre/hooks.nm' < build/hooks.nm
 	$(GUEST) '/root/fwre/fwswap.sh /root/fwre/WIFI_RAM_CODE_MT7961_1.instr.bin'
 
 restore:

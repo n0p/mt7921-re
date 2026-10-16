@@ -473,6 +473,7 @@
   - `--pack 8 --width 10` receives 802.11p 10 MHz frames continuously: 296/300 X410 frames.
   - 16/64-QAM decoding was broken in rx80211 (IFFT gain left in the equaliser reference); it is fixed.
 - **÷8 TX ([30:28] = 7) is a valid 2.5 MHz OFDM PPDU minus its last 3 symbols, and the MAC retries it ~11-15×.**
+  (Later: the loss grows with the frame length; it is set by the MAC tick, notes/10 §5.)
   - Software framing (inner CRC + padding) plus mt7921dbg `tx_count=1` make it usable one-way: 49/50.
   - In TRX mode it is unreliable: the manual-gain forces can turn it into a bare carrier, and USB wedges interfere.
 - **The rig VM is now 12 vCPU / 8 GB, with one emulated xHCI per card and pinned IRQs** (lorien `~/vm23.sh`).

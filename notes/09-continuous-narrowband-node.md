@@ -14,7 +14,7 @@ transmitted from TX/RX0 (external antenna), so the cards used gain 3,4,6 for it.
 | IQ capture, 30 Msps continuous | works, 120 MB/s, 0 overruns; the 802.11p (10 MHz) receive mode | packer 8 (CR10 [19]) |
 | IQ capture, 10 Msps continuous | works, 80 MB/s, 0 overruns; the long-range mode | packer 2 (CR10 [17]) |
 | TX ÷4, 5 MHz OFDM | works | BN_MODE 0x83081000 [30:28] = 5 (native cbw 4) |
-| TX ÷8, 2.5 MHz OFDM | works (also as a half-duplex node, on card A) with a software workaround: last 3 OFDM symbols lost, MAC retries | [30:28] = 7, below |
+| TX ÷8, 2.5 MHz OFDM | works (also as a half-duplex node, on card A) with a software workaround: the PPDU's end is lost (3 symbols on short frames, more on long ones: notes/10 §5), MAC retries | [30:28] = 7, below |
 | TX ÷2, 10 MHz (802.11p/bd) | not available | notes/07 |
 | IQ playback | not available | notes/07 |
 | Tone generator as an MCU-driven IQ DAC | works, but the output collapses unpredictably | §5b below |
@@ -108,6 +108,9 @@ absolute position.
 **Defect 1: the tail is lost.**
 - Every PPDU loses its last 3 OFDM symbols (about 96 µs). This was checked on 322 copies of 30 frames: all were
   byte-perfect through byte 111 of 119, and the last 7 bytes were always garbage.
+  - **Superseded (notes/10 §5):** the loss grows with the frame. The PHY stops the PPDU about 1 ms after the end
+    computed with the MAC's own tick, so only ~27 + N/4 of N symbols arrive. With TICKCR0 = 0xa it is ~30 + N/2.
+    The same tick also cut 5 MHz frames longer than ~260 bytes.
 - So the hardware FCS never survives. That is why ÷8 "never decoded" before.
 - Likely cause: the MAC or PHY times the PPDU with a ÷4 preamble (80 µs short).
 

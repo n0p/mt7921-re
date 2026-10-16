@@ -34,11 +34,17 @@
  *
  * Module parameter tx_count (writable at runtime, default 0 = mt76's own value): transmission attempts written into
  * the TXD (DW3 REM_TX_COUNT) of every injected frame, through a kretprobe on mt76_connac2_mac_write_txwi. mt76 always
- * asks for 15; the ÷8 (2.5 MHz) transmitter ends every PPDU 3 symbols early, the MAC takes that as a failure and
+ * asks for 15; the ÷8 (2.5 MHz) transmitter ends every PPDU early (notes/10 §5), the MAC takes that as a failure and
  * sends each frame ~11-15 times, so narrow-band nodes set 1.
  * Module parameters tx_bw and tx_rate (same probe, 0 = leave): tx_bw 1..4 forces the TX vector bandwidth of injected
  * frames (DW6 FIXED_BW + BW = tx_bw - 1: 20 / 40 / 80 / 160 MHz); tx_rate writes the DW6 rate code (mode << 6 | index,
  * e.g. 0x4b OFDM 6 Mbps, 0x80 HT MCS0). Used to test whether the narrow divider scales with the TX-vector bandwidth.
+ *   The rate code (mt76 MT_TX_RATE_*): [5:0] MCS / legacy rate index, [9:6] PHY mode (0 CCK, 1 OFDM, 2 HT-MF,
+ *   3 HT-GF, 4 VHT, 8 HE-SU, 9 HE-ER-SU), [12:10] NSS - 1, [13] STBC, [4] HE DCM, [5] HE-ER 106-tone.
+ * Module parameters tx_dw6_set / tx_dw6_clr (same probe, 0 = leave): after the overrides above, DW6 = (DW6 & ~clr) |
+ * set, for the coding fields mt76 leaves at 0 for injected frames (FEC tests, notes/10):
+ *   [11] LDPC (HT/VHT/HE; 0 = BCC), [15:14] GI (HT/VHT: 1 = short 400 ns; HE: 0/1/2 = 0.8/1.6/3.2 us),
+ *   [13:12] HE-LTF size (0/1/2 = 1x/2x/4x), [7:4] ANT_ID (antenna index bitmap).
  */
 #include <linux/module.h>
 #include <linux/debugfs.h>
@@ -127,6 +133,12 @@ MODULE_PARM_DESC(tx_bw, "TX vector bandwidth of injected frames: 1..4 = 20/40/80
 static unsigned int tx_rate;
 module_param(tx_rate, uint, 0644);
 MODULE_PARM_DESC(tx_rate, "DW6 rate code of injected frames (mode << 6 | index; 0 = leave)");
+static unsigned int tx_dw6_set, tx_dw6_clr;
+module_param(tx_dw6_set, uint, 0644);
+MODULE_PARM_DESC(tx_dw6_set, "DW6 bits to set on injected frames (after tx_bw / tx_rate): [11] LDPC, [15:14] GI, "
+		 "[13:12] HE-LTF, [7:4] ANT_ID");
+module_param(tx_dw6_clr, uint, 0644);
+MODULE_PARM_DESC(tx_dw6_clr, "DW6 bits to clear on injected frames before tx_dw6_set is applied");
 #define MT_TXD3_REM_TX_COUNT	GENMASK(15, 11)
 #define MT_TXD6_TX_RATE		GENMASK(29, 16)
 #define MT_TXD6_FIXED_BW	BIT(2)
@@ -167,6 +179,11 @@ static int txc_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if (rate) {
 		v = le32_to_cpu(d->txwi[6]) & ~MT_TXD6_TX_RATE;
 		d->txwi[6] = cpu_to_le32(v | FIELD_PREP(MT_TXD6_TX_RATE, rate));
+	}
+	if (READ_ONCE(tx_dw6_set) || READ_ONCE(tx_dw6_clr)) {
+		/* coding fields (LDPC, GI, HE-LTF, antenna) that mt76 leaves at 0 for injected frames */
+		v = le32_to_cpu(d->txwi[6]) & ~READ_ONCE(tx_dw6_clr);
+		d->txwi[6] = cpu_to_le32(v | READ_ONCE(tx_dw6_set));
 	}
 	return 0;
 }

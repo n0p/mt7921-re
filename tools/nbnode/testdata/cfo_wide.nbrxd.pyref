@@ -1,0 +1,3 @@
+# Python reference: rx80211.decode_all (rx80211.py sha1 a236d08440c1fd6b83962324d61b254561cc0a0b)
+options max_frames=200 min_snr=-1 max_len=1600 stf_threshold=0.6 h_smooth=1 ltf_search_derotate=1 cfo_offset=0.0
+# frame <start> <rate Mbps> <PSDU bytes> <fcs ok 0/1> <snr dB> <cfo cycles/sample> <PSDU hex>

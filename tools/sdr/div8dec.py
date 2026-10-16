@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Decode ÷8 (2.5 MHz OFDM) frames of the MT7921 node framing (nbrxd --width 2.5: inner CRC32 + tail padding, since
-the transmitter drops the last 3 OFDM symbols) from an X410 cf32 capture (tools/sdr/capture.py).
+"""Decode ÷8 (2.5 MHz OFDM) frames of nbrxd's node framing (nbrxd --width 2.5: inner CRC32 + a fixed 4 symbols of
+tail padding, since the transmitter ends every PPDU early; notes/10 §5) from an X410 cf32 capture (tools/sdr/capture.py).
 Usage: div8dec.py <capture.cf32> <rate Msps>   prints the decoded NBTX/inner-CRC frames and a summary."""
 import re
 import struct

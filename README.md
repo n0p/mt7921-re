@@ -1,172 +1,321 @@
-# MT7921AU narrowband: firmware RE, IQ capture, and a 5 / 2.5 MHz node
+# MT7921AU narrowband: firmware RE, IQ capture, 5 / 2.5 MHz mesh and 802.11p nodes
 
-Goal: use an MT7921AU USB card (MT7961 + MT7972, NDS32 WM MCU) as a narrowband long-range mesh node and as an
-802.11p / bd-style modem in the 2.3–2.4 GHz amateur band.
+This project turns an MT7921AU USB Wi-Fi card (MT7961 D-die + MT7972 A-die, NDS32 WM MCU) into:
+- a narrowband (5 or 2.5 MHz) long-range mesh node, for 2.4 GHz ISM spectrum or the amateur bands;
+- an 802.11p receiver.
 
-This work covers:
-- reverse engineering of the Wi-Fi firmware, then patching and instrumenting it;
-- a firmware IQ streamer;
-- a software OFDM receiver;
-- a single-card half-duplex node that carries IP.
+It covers reverse engineering and instrumenting the Wi-Fi firmware, a firmware IQ streamer, software OFDM
+receivers, and the node programs. Details are in [notes/](notes/); this page is the summary. Status as of 2026-10-16.
 
-Details live in [notes/](notes/); this page is the summary. Status as of 2026-10-16.
+## Hardware capabilities (what we found)
+**Firmware**
+- The WM RAM firmware can be modified. There is no signature, only a per-region LFSR download checksum, which
+  `tools/mtfw_patch.py` fixes (notes/02).
+- C hooks run from free SRAM. A debug command gives MCU-side reads, writes and calls of anything (notes/03).
+- Never load a 2025+ ROM patch (eFuse gate).
 
-## What runs on the card and what runs as IQ
-The card's own PHY can **transmit** narrow OFDM (hardware clock dividers ÷4 and ÷8, no ÷2) but cannot **demodulate**
-it: its demodulator stays at 20 MHz timing in every configuration (notes/03, 06).
+**Tuning**
+- A frequency override in the driver's CHANNEL_SWITCH command tunes the synthesizer anywhere in 2300–2500,
+  4900–5925 and 5925–7125 MHz (notes/04).
+- Checked by RF readback at 2350, 2450, 5180, 5890 and 5900 MHz. 6 GHz is untested.
 
-So the **receive side of every narrow mode is IQ**:
-- the card's capture block (ICAP) records the front end's samples;
-- an instrumented-firmware hook streams them over USB;
-- software on the host demodulates them.
+**Transmit**
+- The card transmits narrow OFDM with hardware clock dividers: **÷4 = 5 MHz** and **÷8 = 2.5 MHz** PPDUs
+  (`PHY_BN_MODE 0x83081000 [30:28]`).
+- **There is no ÷2, so the card cannot transmit 10 MHz (802.11p/bd).** It cannot play back IQ either: the tone
+  generator's DC word works as a slow DAC, up to 1.45 Msps, and collapses unpredictably (notes/07, 09).
+- **The MAC tick `WFSYS_TICKCR0` decides when a PPDU ends**:
+  - 0xa (5 MHz timing) is needed for whole 5 MHz frames. The channel switch leaves 0x5, which cuts frames
+    longer than ~260 bytes.
+  - No tick is slow enough for ÷8: a 2.5 MHz PPDU of N symbols keeps ~30 + N/2 of them (notes/10 §5).
+- At ÷4 the card applies every coding it has: legacy BCC; HT with LDPC, short GI and STBC over 2 chains; VHT; HE-SU
+  with LDPC, DCM and long GI/LTF; HE-ER-SU (checked through the SIG fields' CRCs, notes/10 §1).
+- MediaTek's ContiTx block is only a calibration tone source.
 
-| Function | Runs on | How |
-|---|---|---|
-| Normal 20/40/80 MHz Wi-Fi | **card** (stock PHY + MAC) | unchanged |
-| Tuning to 2300–2400 MHz | **card** firmware | CHANNEL_SWITCH frequency override (notes/04); the RF readback confirms 2350.000 MHz |
-| **5 MHz OFDM TX** (802.11a timing ÷4) | **card** hardware | BN_MODE `0x83081000 [30:28] = 5` (native cbw 4). Frames are injected on a monitor interface and the card's MAC/PHY sends them. 1.5–13.5 Mbps on air |
-| **2.5 MHz OFDM TX** (÷8) | **card** hardware + host framing | `[30:28] = 7`. The PPDU always loses its last 3 OFDM symbols, so the sender adds its own CRC and padding, and mt7921dbg `tx_count=1` stops the MAC's retries (notes/09 §4). 0.75–6.75 Mbps |
-| 10 MHz OFDM TX (802.11p / bd) | **not possible** | The TX generator runs only at ÷1, ÷4 or ÷8 (0x83081000 is mapped in full). All 832 single-bit flips of the TX-page control words stay at ÷4. 40 MHz TX vectors come out as 20 MHz-class PPDUs under ÷4. The ContiTx block is a calibration tone source. A firmware IQ DAC is capped by the PHY register bus at 4.2 M writes/s (238 ns per store), and 10 MHz OFDM needs ≥ 10 Msps. No code path selects a PHY clock rate (notes/07) |
-| 10 MHz OFDM RX in the card's demodulator | **not possible** | Fixed 20 MHz numerology. The class codes, RXFE_CTRL, manual decimation and timing rescales re-time nothing. A 1481-candidate field scan of the demodulator, front-end and other RX pages decoded 0 of the X410's 802.11p frames, while card A's IQ path decoded 113 531 of them at the same time (notes/03, 2026-10-16) |
-| **5 / 2.5 / 10 MHz OFDM RX** | **IQ** → host software | ICAP capture → firmware hook → USB → `tools/sdr/rx80211.py` |
-| IQ capture rate | **card** hardware | ICAP packer `0x800210b8 [19:16]`: 0 = 40 Msps (gated only), 8 = 30 Msps, 2 = 10 Msps; the last two stream continuously |
-| IQ streaming | **card** firmware hook | `fw/src/iqstream.c` lends the idle MCU WFDMA TX ring 0 to USB bulk IN 0x84; `tools/guest/mt7921dbg` collects it in the host kernel |
-| Energy gate (optional) | **card** firmware | the same hook streams only busy periods (40 Msps mode) |
-| Preamble detection, CFO, FFT, Viterbi, FCS | **host** | `rx80211.py` (Viterbi in C: `vit.c`) |
-| Node logic (half-duplex, IP over TAP) | **host** | `tools/guest/nbrxd.py` |
-| Tone generator as an IQ DAC | **card** (the MCU writes a DC I/Q word) | experimental: it modulates the carrier, but the output collapses unpredictably (notes/09 §5b) |
+**Receive**
+- The demodulator has fixed 20 MHz numerology, so no narrow frame is ever demodulated in hardware (notes/03, 06).
+- The capture block (ICAP) records the front-end IQ at 40 Msps. Its sample packers give a continuous **10 or
+  30 Msps**.
+- A firmware hook streams the capture over USB (80 / 120 MB/s, up to ~150 MB/s), and the host demodulates it
+  (notes/08, 09).
+- The receive gain must be set by hand: the AGC hunts on noise. A neighbour 10 cm away needs the lowest gain.
 
-**Per mode:**
-- **5 MHz:** TX on the card, RX as 10 Msps IQ.
-- **2.5 MHz:** TX on the card (with the framing workaround), RX as 10 Msps IQ.
-- **802.11p 10 MHz:** RX only, as 30 Msps IQ.
+**Quirks**
+- **Half-duplex only:** the capture overwrites the packet SRAM that carries MCU commands and TX frames, so a node
+  transmits only between capture slices.
+- A neighbour's near-field bursts can latch a MAC TX deferral that only a re-tune clears (notes/10 §6).
+- One rig card (B) sometimes wedges its USB control path (notes/09).
 
-## How a node works (tools/guest/nbrxd.py)
+## Main programs
+- **`nbmesh`** (`tools/nbnode`, Rust, std only, for embedded hosts): a 5 or 2.5 MHz mesh node on one card. It
+  serves a **TUN or TAP** interface (`--mode`):
+  - the card transmits, with its own PHY coding (`--profile`);
+  - the host receives the IQ stream and decodes it;
+  - packets get Reed-Solomon erasure FEC (`--fec K,M`, default 4 data + 2 parity);
+  - it alternates capture slices and TX windows, and recovers TX stalls and card resets by itself;
+  - the default frequency is **2450 MHz (2.4 GHz ISM)**. It transmits on any `--freq` the card tunes: choosing a
+    frequency you may use is up to the operator.
+- **`p11node`** (`tools/nbnode`, Rust): an IEEE 802.11p receiver on the ITS channels 172–184 (5.9 GHz).
+  - It streams IQ at 30 Msps, decodes at 10 Msps, and delivers frames to a TAP/TUN interface (e.g. GeoNetworking
+    for an ITS stack), a pcap and stdout.
+  - Receive only, since no transmitter of this chip makes 10 MHz frames.
+- **`tools/guest/nbprep.py`**: prepares a card by hand. It tunes, sets the MAC tick and the divider, programs the
+  capture and gain, sets the PHY coding profile and creates a monitor interface for injection; it also has
+  `--status`, `--release` and `--rx-test`. Default 2450 MHz.
+- **Instrumented firmware** (`fw/`):
+  - the stock 2026 RAM image with C hooks: the debug command, the IQ streamer, the tone DAC and measurement helpers;
+  - assembly patches (a dedicated ICAP SRAM partition; optional out-of-band tuning through the sniffer config);
+  - `make install` loads it on both cards.
+- **`mt7921dbg`** (`tools/guest/mt7921dbg`), a kernel module next to mt76, provides:
+  - debugfs access to the debug command and raw MCU commands;
+  - the IQ stream collector (one ring per card);
+  - TXD overrides for injected frames (rate, coding fields, one attempt);
+  - a narrow RX-vector fix-up.
+- **Software receivers:**
+  - `tools/sdr/rx80211.py` (numpy, with a C Viterbi in `vit.c`) decodes 802.11a/p OFDM at any width. It is the
+    reference.
+  - The Rust port in `tools/nbnode` (`rxfile` CLI) is byte-identical to it on every test vector.
+- **`tools/guest/nbrxd.py`**: the Python prototype of the node (TAP, pcap, transmit-only and receive-only modes,
+  test modes). It is kept for experiments; `nbmesh` replaces it for deployment.
+- **Commented decompilation** (`tools/annotate.sh` + `tools/ghidra`):
+  - a Ghidra project for the NDS32 firmware, with names, register glossaries and comments from the notes;
+  - exported as `work/decomp/all.c` (RAM) and `rom_all.c` (boot ROM); look a function up with
+    `tools/fshow.sh 0xADDR`.
+
+## Quick start
+```sh
+make -C fw && make -C fw install            # build the instrumented firmware and load it on both cards (guest)
+tools/g.sh /root/fwre/rigreset.sh           # clean rig state
+(cd tools/nbnode && cargo build --release)  # nbmesh, p11node, rxfile; copy them to the card's host (/root/fwre)
+# a mesh node at the default 2450 MHz (2.4 GHz ISM), 5 MHz, FEC 4+2, IP on TUN nb0
+./nbmesh wlx00c0cab7962a --addr 10.42.0.1/24
+# on this rig (cards 10 cm apart; test transmissions at 2350 MHz under the operator's amateur licence)
+tools/g.sh '/root/fwre/nbmeshtest.sh 2350 40 "--gain 0,0,0"'      # two nodes, ping A -> B
+tools/g.sh 'cd /root/fwre && ./p11node wlx00c0cab7962a --channel 180 --pcap /tmp/its.pcap'
+tools/g.sh 'cd /root/fwre && python3 nbprep.py wlx00c0cab7962a --status'
+tools/rigrecover.sh                         # after a card wedge: USB reset, VM reset, firmware reload
 ```
-RX:  air -> RF front end (band-limited to +-5 MHz in native cbw 4) -> ICAP packer (10 or 30 Msps)
-         -> SRAM ring (dedicated ICAP partition, fw/asm/icap_pool_layout.S) -> fw hook hk_iqstream
-         -> USB bulk IN 0x84 -> mt7921dbg kprobe collector -> nbrxd: 100 ms blocks -> rx80211 (3 worker processes)
-         -> 802.11 frames -> TAP interface (IP)
-TX:  TAP -> nbrxd -> 802.11 data frame (OCB-style addressing, LLC/SNAP) -> monitor injection
-         -> card MAC/PHY at /4 (5 MHz) or /8 (2.5 MHz) -> air
-```
-- **Half-duplex.** The card receives in continuous slices. When the kernel queues frames, nbrxd ends the slice
-  (one register write), opens a TX window, and restarts capture.
-- **TX window (default "window" mode):** MAC TX goes on; the frames go out; MAC TX goes off only once the device's
-  queues are empty.
-- **Firmware protocol.** No MCU commands are sent while a slice streams. Slice status is read through the USB
-  register path.
+`tools/nbnode/README.md` describes the Rust programs; `nbmesh --help` and `p11node --help` list every option.
 
-## Results (all measured on the rig at 2350 MHz)
+## Results (measured on the rig at 2350 MHz unless noted)
 | Test | Result |
 |---|---|
-| X410 → card A, 5 MHz frames, continuous 10 Msps, real time | 368/372 (losses only in two ~0.1 s slice restarts) |
-| Narrowed capture vs. full 40 Msps, X410 5 MHz frames | 98/98 at 10 Msps and at 30 Msps, the same SNR as 40 Msps; 0 overruns |
-| **802.11p 10 MHz RX**, X410 frames, continuous 30 Msps | **296/300** with valid FCS, no false decodes |
-| UDP card → card, 5 MHz, one way | 97/100, 98/100; 49/50 from a half-duplex sender |
-| UDP both ways, two half-duplex nodes, Poisson ~5/s each way, 30 s | 81% / 74%, median latency 0.2 s |
-| Same, 4/s each way, 120 s, window TX | 54% / 52%, latency p50 0.23 s, p90 0.37 s (no MAC: turnaround and collisions) |
-| Ping between two nodes | 9/10 in the best run |
-| **2.5 MHz OFDM TX**, one way (UDP) | 49/50, one transmission per frame |
-| 2.5 MHz TX from a half-duplex node (card A), seen by the X410 | 23/23 frames in the windows captured; 28 cycles, no failure |
-| Card A stability: 5 min continuous RX | 23.7 GB, 0 drops, 0 errors |
-| Card A stability: ~800 TX-then-RX cycles | 0 failures |
-| Software receiver speed at 10 Msps | 1.2 CPU-seconds per second (guest), 1.0 (laptop) |
+| X410 → card A, 5 MHz frames, IQ at 10 Msps, nbmesh receiver | 4775/4775 |
+| X410 → card A, 802.11p 10 MHz, IQ at 30 Msps, p11node | 6702/6702, delivered to a TAP as GeoNetworking |
+| nbmesh, two nodes, 5 MHz, ping | 54/60 with FEC 4,2 (48/60 without); 59/60 with 1300-byte pings |
+| nbmesh TAP mode | 36/40, ARP over the link |
+| 2.5 MHz frames up to 1608 bytes (length-dependent padding) | 26 of 27 frames arrived, every inner CRC intact |
+| Receiver sensitivity, BPSK 1/2 at 10% PER | 4 dB SNR with the default ±1 channel smoothing, 3 dB with ±2 (notes/10 §2) |
+| Rust receiver, one laptop core | 1.6× real time on a fully loaded 10 Msps channel, 3.2× at 5 Msps |
+| nbrxd prototype: UDP card → card, one way / both ways | 97–98/100 / 81% and 74% (Poisson ~5/s each way) |
+| Card A stability | 5 min continuous RX (23.7 GB), ~800 TX/RX cycles: 0 failures |
 
-## What was built
-**Firmware RE and patching (notes/01, 02):**
-- region layout and the per-region PDA download checksum; `tools/mtfw_patch.py` builds modified images that boot;
-- gp, EX9 ITB and command tables recovered; a Ghidra NDS32 extension.
-- Commented decompilation (`work/decomp/all.c` for RAM, `rom_all.c` for the boot ROM):
-  - `tools/annotate.sh` applies `tools/ghidra/annotations` to the Ghidra project and re-exports. The annotations are
-    generated by `gen_ram.py` / `gen_rom.py`.
-  - Analyzed functions get names and plate comments with what the notes established, e.g. `phySetBwClock`,
-    `contiTxStart`, `connAfeSetXtal`.
-  - MMIO registers get names and a glossary at the top of each file, so the C reads `PHY_BN_MODE = …`.
-  - Every other function is tagged with the source files its asserts cite and the log formats it prints.
-  - Look a function up by address with `tools/fshow.sh 0xADDR`; the notes cite them as `all.c @0xADDR`.
-
-**Instrumented firmware (fw/, notes/03), `make` / `make install`:**
-- C hooks linked into SRAM;
-- a debug command for reads, writes and calls;
-- the IQ streamer (`iqstream.c`);
-- `dac.c`;
-- in-place assembly patches (`fw/asm/`), including the dedicated ICAP partition (Fix A, notes/08).
-
-**2.3 GHz:** frequency override through CHANNEL_SWITCH (notes/04).
-
-**PHY / clock / bandwidth maps (notes/05, 06).** Static analysis: the demodulator has no narrow mode, and the RX BW
-codes 4/5 only decimate.
-
-**TX capabilities (notes/07, 09):**
-- ÷4 and ÷8 work;
-- no ÷2;
-- no IQ playback;
-- the tone generator is a live, linear DC I/Q DAC (tones up to at least 62.5 kHz, 1.45 Msps writes).
-
-**IQ capture (notes/08, 09):**
-- the capture ring moved out of the packet pool;
-- the 40 Msps floor beaten with the ICAP packers;
-- the packer-2 beat layout decoded.
-
-**Host software:**
-- `tools/sdr/rx80211.py`: 802.11a/p/quarter-rate OFDM receiver; all 8 rates, CFO, SNR and CW-spur gates;
-- `iqrec.py`, `iqchunkdec.py`, `iqdec.py`: record parsing and offline decoding;
-- `tools/guest/nbrxd.py`: the node daemon;
-- the mt7921dbg kernel module: debug command, IQ collector, RX bandwidth fix-up, `tx_count`.
-
-**Test harness:**
-- `nbping.sh`, `nblink.sh`, `nbudp.sh`, `iqstream.sh`;
-- `txdiv8.sh`, `div8bisect.sh`, `tonedac.sh`, `dacbw.sh`, `dactssi.sh`;
-- TX timing meters: `txmeter.sh` (one configuration), `txscan.py` with `tools/sdr/txscan.py` / `txscansum.py` (one
-  card-A capture for dozens of card-B register configurations, ~1 s each; nbrxd `--dump-gate`), `contitx.sh`
-  (ContiTx replay);
-- X410 scripts in `tools/sdr/`;
-- `tools/rigrecover.sh`.
-
-## Quick start (on the test rig)
-```sh
-make -C fw && make -C fw install                     # build and load the instrumented firmware (both cards)
-tools/g.sh /root/fwre/rigreset.sh                    # clean rig state
-# a node: card A at 2350 MHz, 5 MHz frames, continuous 10 Msps RX, IP on TAP nbA in netns nsA
-tools/g.sh 'cd /root/fwre && python3 nbrxd.py A 2350 --pack 2 --tap nbA --netns nsA'
-# options: --width 2.5 (the /8 transmitter), --pack 8 --width 10 (802.11p receive), --rx-only, --tx-only,
-#          --pcap FILE, --show-bad; two-node tests: PACK=2 ./nbping.sh 2350 20, PACK=2 ./nblink.sh 2350 30 5
-tools/rigrecover.sh                                  # after a card wedge: USB reset, VM reset, reload
-```
-
-## Limitations and open problems
-- **No native 10 MHz, in either direction.** The silicon has no half-rate path:
-  - TX: ÷1, ÷4 and ÷8 only, measured over every 0x83081000 field and code;
-  - RX: the demodulator always works at 20 MHz numerology.
-
-  A different firmware cannot add either, since every test drove the registers directly. 802.11p/bd interop is
-  therefore receive-only (IQ). The card's 5 MHz PPDU is a valid quarter-rate 802.11a frame (decoded by our receiver
-  and by the X410). Interop with ath9k's 5 MHz mode is expected but untested.
-- **Half-duplex, no MAC protocol.** Delivery drops with load. A random-access / ARQ layer is the next software step.
-- **÷8 tail loss** is worked around in software; the MAC timing register behind it has not been found.
+## Limitations
+- **No 10 MHz in either direction:** the silicon has no ÷2 transmitter and no narrow demodulator. 802.11p/bd is
+  receive-only through IQ. The card's 5 MHz PPDU is a valid quarter-rate 802.11a frame. Interop with ath9k's 5 MHz
+  mode is expected but untested.
+- **Half-duplex, no MAC protocol:**
+  - delivery drops with load and collisions;
+  - the packet FEC repairs losses without retransmission (it halved the round-trip loss);
+  - a random-access layer is the next software step.
+- **2.5 MHz:**
+  - long frames need about twice their airtime in padding;
+  - PPDUs longer than ~17.5 ms were never seen to leave the card;
+  - nbmesh caps the MTU at ~830, so there is no IPv6 at that width.
+- **The receivers decode legacy (BCC) rates only.** HT/HE reception (STBC, LDPC, HE-ER) is the plan in notes/10 §4.
 - **Tone-DAC collapse:** the power-control loop is involved (notes/09 §5b).
-- **Card B (lab rig) wedges its USB control path**, even when only receiving; card A is stable. It looks like card B or
-  its host port: being tested.
-- The rig is a QEMU guest on the lab host. It now runs 12 vCPUs, 8 GB, one emulated xHCI per card, and pinned
-  interrupts (lorien `~/vm23.sh`). One card at 80 MB/s costs about one vCPU of USB emulation.
+- **The rig:**
+  - a QEMU guest on the lab host: 12 vCPUs, one emulated xHCI per card, pinned interrupts (lorien `~/vm23.sh`);
+  - one card at 80 MB/s costs about one vCPU of USB emulation;
+  - card B's USB wedges are not explained (notes/09).
 
 ## Hazards (learned the hard way)
 - Never load a 2025+ ROM patch (eFuse gate).
 - MCU reads of 0x8103xxxx or of unmapped/granted memory hang the MCU.
 - Host reads at or after 0xe0300000 reset the card.
-- Don't touch CONN AFE 0x7c003xxx or 0x88009000/04 [23:0]/08.
+- Don't touch CONN AFE 0x7c003xxx or 0x88009000/04 [23:0]/08; in WFSYS_ON only TICKCR0 [4:0] may be written.
 - Avoid host reads of the PSE.
-- Stop the tone generator (`FUN_00969126`) before any rig reset.
-- Transmit only in the licensed 2300–2400 MHz band.
+- Stop the tone generator (`FUN_00969126`) and ContiTx (`FUN_00968e82`) before any rig reset.
+- MCU commands during a capture slice, and a TX frame left queued when a slice starts, both break the card's command
+  or TX path until a reset.
+- Transmitting is the operator's responsibility: the tools impose no band limits. This rig's test transmissions stay
+  at 2350 MHz (amateur licence).
 
-## Notes index
-- [01](notes/01-firmware-layout-and-bw.md) firmware layout and the BW path
-- [02](notes/02-integrity-and-patch-strategy.md) integrity and patching
-- [03](notes/03-instrumentation-and-narrowband.md) instrumentation and the narrowband investigation (chronological log)
-- [04](notes/04-2g3-tuning.md) 2.3 GHz tuning
-- [05](notes/05-crmap-and-clock-blocks.md) register-field layer and clocks
-- [06](notes/06-phy-bw-config-map.md) PHY bandwidth map
-- [07](notes/07-tx-capabilities.md) TX capabilities
-- [08](notes/08-icap-ring-and-rate.md) ICAP ring and rate
-- [09](notes/09-continuous-narrowband-node.md) continuous capture, the node, ÷8, the tone DAC, rig limits
+## Repository map (what file is what)
+Not in git: `work/` (firmware images, the Ghidra project, the decompilation exports `work/decomp/all.c` and
+`rom_all.c`, external repositories) and `__pycache__/`.
+
+### Top level
+| file | what it is |
+|---|---|
+| `README.md` | this page |
+| `informe_mt7921.md` | the previous agent's research report (Spanish); superseded, kept for reference |
+| `patches/0001-mt7921-force_cbw-experiment.patch` | mt76 patch adding a `force_cbw` parameter, for experiment 1 (`tools/guest/exp1_narrowbw.sh`) |
+
+### notes/
+| file | topic |
+|---|---|
+| [01](notes/01-firmware-layout-and-bw.md) | firmware layout and the channel-bandwidth path |
+| [02](notes/02-integrity-and-patch-strategy.md) | firmware integrity (download checksum, no signature) and how to load modified firmware |
+| [03](notes/03-instrumentation-and-narrowband.md) | instrumented firmware and the narrowband investigation (chronological log) |
+| [04](notes/04-2g3-tuning.md) | tuning to 2300–2400 MHz |
+| [05](notes/05-crmap-and-clock-blocks.md) | ROM register-field layer (GCI) and the WLAN/LMAC clock-mode register (TICKCR0) |
+| [06](notes/06-phy-bw-config-map.md) | PHY bandwidth configuration map |
+| [07](notes/07-tx-capabilities.md) | TX capabilities: IQ/waveform transmit, the missing ÷2, the 10 MHz conclusion |
+| [08](notes/08-icap-ring-and-rate.md) | ICAP ring placement, SRAM modes, packet-pool layout, capture rate |
+| [09](notes/09-continuous-narrowband-node.md) | continuous narrowed capture, the node, the ÷8 transmitter, the tone DAC, rig limits |
+| [10](notes/10-fec.md) | FEC: the card's coding options, receiver sensitivity, TX truncation and the MAC tick, nbmesh and p11node on hardware |
+
+### fw/ (instrumented firmware)
+| file | what it is |
+|---|---|
+| `Makefile` | builds `out/WIFI_RAM_CODE_MT7961_1.bin` (stock image + hooks, checksums fixed); `install`, `restore`, `verify` |
+| `include/fw.h` | firmware types and entry points the hooks call |
+| `fwsyms.ld` | firmware symbols (live addresses) for linking the hooks |
+| `hooks.ld` | places the hook code in free SRAM after RAM region 3 |
+| `hooks.def` | hook installation: pointers patched into the image |
+| `src/dbgcmd.c` | the debug command (CE cid 0xcb): read, write, call, call-detached |
+| `src/iqstream.c` | the IQ streamer: ICAP ring → MCU WFDMA TX ring 0 → USB bulk IN, with an optional energy gate |
+| `src/dac.c` | the tone generator as a slow IQ DAC (`hk_dacplay`) |
+| `src/util.c` | measurement helpers (`hk_wrspeed`, …) |
+| `asm/icap_pool_layout.S` | packet pool with a dedicated ICAP partition (notes/08 Fix A) |
+| `asm/sniffer_outband_call.S`, `asm/sniffer_outband_tramp.S` | opt-in frequency override through the sniffer config (notes/04) |
+| `patches/icappool.def`, `patches/outband.def` | patch sets: default, and opt-in (`make OUTBAND=1`) |
+| `build/`, `out/` | build outputs: objects, `hooks.nm` (the hook addresses; `make install` copies it to `/root/fwre/hooks.nm`, which the nodes read), the patched images |
+
+### tools/ (laptop side: rig access, firmware images, decompilation)
+| file | what it is |
+|---|---|
+| `g.sh`, `h.sh` | run a command in the test guest / on the lab host lorien (X410, builds) |
+| `rigrecover.sh` | full rig recovery after a card wedge (USB reset, VM reset, stack and firmware reload) |
+| `vmpause.sh`, `wedgestats.sh` | freeze the VM for N seconds; wedge statistics over repeated two-card runs |
+| `trunctest.sh` | narrow-PPDU TX truncation check: card A transmits, the X410 captures, `sdr/trunccheck.py` counts symbols |
+| `mtfw_split.py` | split RAM-code and ROM-patch images into load regions |
+| `mtfw_patch.py` | patch a RAM image and fix its integrity words; `--verify` |
+| `crc_probe.py` | early probe of the per-region check value with CRC-32 variants (the real algorithm, an LFSR, is in `mtfw_patch.py`) |
+| `mkruntime.py` | the DLM region in its runtime layout (.data moved by 0x44c, bss cleared) |
+| `find_gp.py` | estimate the NDS32 `$gp` from gp-relative string references |
+| `hookargs.py` | turn `fw/hooks.def` into `mtfw_patch.py` arguments |
+| `ghidra_build.sh`, `ghidra_script.sh` | rebuild the Ghidra project; run one Ghidra post-script on it |
+| `decomp.sh` | decompile functions selected by address or by referenced string |
+| `annotate.sh` | apply `ghidra/annotations` and regenerate the commented decompilations |
+| `fshow.sh`, `fgrep.sh` | print decompiled functions by address; grep a decompilation with the containing function |
+| `gci_comment.py` | comment every GCI register-field access in the decompilation exports |
+| `bwmap.py` | call-graph walk collecting PHY/RF register writes |
+| `crtable.py` | decode the firmware's compressed PHY CR tables into CSV |
+| `phydiff.py` | diff PHY/RF register snapshots |
+| `icapview.py` | inspect an ICAP capture: statistics, ASCII spectrum, occupied width |
+
+### tools/ghidra/
+| file | what it is |
+|---|---|
+| `NDS32_MT7961/` | Ghidra extension: NDS32 processor (SLEIGH) with EX9 support, for the MT7961 WM MCU |
+| `SetupMt7961.java`, `SeedFunctions.java` | map the firmware regions, set `$gp` and entry points; seed functions at NDS32 prologues |
+| `Ex9Gen.java`, `GpRefs.java` | generate the EX9 instruction-table SLEIGH include; create references for gp-relative accesses |
+| `LabelCmdTable.java` | label an MCU command dispatch table and create its handlers |
+| `Decomp.java`, `DecompAll.java` | decompile selected functions; decompile everything into one file with a register glossary |
+| `Annotate.java`, `MmioVolatile.java`, `AutoComment.java` | apply the annotations; keep MMIO blocks volatile; add automatic per-function context |
+| `annotations/gen_ram.py`, `annotations/gen_rom.py` | annotation sources (functions, registers, comments) |
+| `annotations/ram.tsv`, `rom.tsv`, `regs.tsv` | the tables they generate |
+
+### tools/nbnode/ (Rust crate: `nbmesh`, `p11node`, `rxfile`)
+| file | what it is |
+|---|---|
+| `README.md` | usage, options, on-air format, results, limits |
+| `Cargo.toml`, `Cargo.lock` | the crate (no dependencies) |
+| `src/bin/nbmesh.rs`, `src/bin/p11node.rs`, `src/bin/rxfile.rs` | the three programs |
+| `src/lib.rs` | the crate root: module overview |
+| `src/card.rs` | every access to the card (debug command, register path, EXT commands, mt7921dbg parameters, injection), the setup steps, capture slices, TX windows |
+| `src/node.rs`, `src/iqring.rs` | the shared receive engine (slices, overlapping blocks, decoder threads); the IQ ring reader and sample unpacking |
+| `src/frame.rs`, `src/fec.rs`, `src/profile.rs` | 802.11 framing and the ÷8 inner CRC; the Reed-Solomon packet FEC; PHY coding profiles, airtime, the ÷8 padding model |
+| `src/netdev.rs`, `src/sys.rs` | TUN/TAP interfaces; the few libc calls std lacks |
+| `src/rx80211.rs`, `resample.rs`, `viterbi.rs`, `fft.rs`, `complex.rs`, `iqfile.rs` | the receiver: port of `rx80211.py`, `vit.c` and scipy `resample_poly` |
+| `tests/vectors.rs`, `testdata/` | test vectors with Python reference decodes (`testdata/gen.py` regenerates them) |
+
+### tools/guest/ (runs in the test guest, from /root/fwre)
+**Card access**
+| file | what it is |
+|---|---|
+| `mt7921dbg/` | the kernel module (`mt7921dbg.c`), its `Makefile`, and `mt76.symvers` (modversion CRCs of the loaded mt76) |
+| `fwdbg.py` | CLI for the debug command: read, write, call on the MCU |
+| `dbglock.py` | lock shared by all tools that use mt7921dbg's single target card |
+| `memdump.py` | chip-bus reads/writes through mt76 debugfs (USB vendor requests) |
+| `chsw.py`, `outband.py` | send CHANNEL_SWITCH directly (any width, frequency override); tune out of band and read back the synthesizer |
+| `ate.py`, `aterx.py` | MediaTek ATE (RF test mode) client; its receive-test helper |
+
+**Rig management**
+| file | what it is |
+|---|---|
+| `rigreset.sh` | reload the instrumented firmware on both cards, recreate `mon_a`/`mon_b` |
+| `fwswap.sh`, `rig2022.sh` | install a firmware image and re-probe (or restore the stock one); load the stock 2022 firmware |
+| `loadstack.sh` | load the mt76 driver stack from `/root/stackok` in dependency order |
+
+**Narrowband nodes**
+| file | what it is |
+|---|---|
+| `nbprep.py` | prepare a card for 2.5 / 5 MHz (see Main programs) |
+| `nbrxd.py` | the Python node prototype |
+| `nbmeshtest.sh` | two-node nbmesh ping test (cards A and B in network namespaces) |
+| `nbping.sh`, `nblink.sh`, `nbudp.sh` | nbrxd two-node tests: ping; Poisson UDP both ways; one-way IP with transmit-only and receive-only nodes |
+| `nbset.sh` | monitor interface on a native 5/10 MHz channel through the stock driver path |
+| `inject.py`, `inject8.py` | inject broadcast test frames on a monitor interface; the same with ÷8 framing |
+
+**IQ capture and streaming**
+| file | what it is |
+|---|---|
+| `icap.py` | program and run the ICAP capture through host register access (`ICAP_SETUP_ONLY=1` for the nodes) |
+| `iqstream.sh`, `iqloop.sh`, `iqdrain.py` | one IQ stream through the firmware hook; back-to-back streams; drain an IQ ring into a file |
+| `icapcode.sh`, `icapdiv.sh`, `icapdom.sh`, `icappack.sh`, `icaprate.sh` | capture-rate and format surveys: per BN code, divider, capture domain, packer, mode byte |
+| `icapsave.sh`, `icapsurvey.sh`, `tapsurvey.sh`, `tonecap.sh` | save captures per configuration; tap surveys; capture taps while an external tone is on air |
+| `sramsnap.py` | snapshot of the 256 KiB packet SRAM |
+
+**TX experiments**
+| file | what it is |
+|---|---|
+| `txdiv8.sh`, `div8bisect.sh` | ÷8 transmit test; which setup step makes the ÷8 transmitter key a bare carrier |
+| `txmeter.sh`, `txscan.py`, `txscanbatch.sh` | TX timing meter; fast scan of many card-B register configurations in one card-A capture; the scan in batches |
+| `contitx.sh`, `txicap.sh`, `narrow_tx.sh` | ContiTx replay; card B as an SDR for card A's frames; card A transmitting in phases for SDR measurements |
+| `tonedac.sh`, `dacbw.sh`, `dactssi.sh`, `busspeed.sh` | the tone generator as an IQ DAC: liveness, bandwidth, collapse; MCU write speed to PHY registers |
+
+**RX experiments (the search for a narrow demodulator)**
+| file | what it is |
+|---|---|
+| `narrow_test.sh`, `c2c.sh`, `icapnb.sh` | card-to-card narrow-reception screens (register profile, candidate writes, through ICAP) |
+| `rxcand.sh`, `rxclk.sh`, `rxdivscan.sh`, `rxpair.sh` | receive candidate register tests between the two cards |
+| `rxscan10.sh`, `pdscan.py`, `rx10match.py` | 10 MHz demodulator field scan; post-detection stage scanner; match scan windows against reference frames |
+| `aterxtest.sh`, `mibdiff.sh`, `exp1_narrowbw.sh` | ATE receive test; MIB counter diff around a burst; does the stock firmware narrow the PHY (experiment 1) |
+| `dualtrx.sh` | card-wedge reproducer: both cards as half-duplex nodes |
+
+**Register snapshots**
+| file | what it is |
+|---|---|
+| `snap2022.sh`, `snapA.sh`, `snapbw.sh`, `snapwide.sh` | PHY/RF/MAC register page snapshots (2022 firmware; card A narrow; bandwidth progression; wide set) |
+| `wide_pages.txt`, `phy_pages.txt` | the register page lists those snapshots read |
+
+### tools/sdr/ (X410 SDR on lorien, and offline analysis)
+**Receivers and decoders**
+| file | what it is |
+|---|---|
+| `rx80211.py`, `vit.c` | the reference 802.11a/p OFDM receiver (any width, at the 20 Msps-equivalent rate); its C Viterbi |
+| `ofdm80211.py` | 802.11a/p PPDU generator (used by the X410 transmit scripts and tests) |
+| `sigdec.py` | decode L-SIG, HT-SIG and HE-SIG-A with their CRCs: what a transmitter really sent |
+| `iqrec.py`, `iqdec.py`, `iqchunkdec.py` | parse mt7921dbg IQ records; decode record files (gated streams; long continuous ones in blocks) |
+| `decmulti.py`, `div8dec.py`, `symcheck.py` | decode under several width hypotheses; decode ÷8 node frames (fixed padding); per-symbol quality |
+| `perawgn.py`, `trunccheck.py` | PER vs SNR with added noise on real card bursts; symbols that arrive per narrow PPDU |
+
+**X410 capture and transmit**
+| file | what it is |
+|---|---|
+| `capture.py` | raw capture to a cf32 file (RX1, the in-room antenna, by default) |
+| `txloop.py`, `txframes.py`, `txtone.py` | transmit frames continuously (`ETHERTYPE` for ITS-like frames); N frames (whole waveform in RAM: small counts only); a tone |
+| `burst.py`, `psd.py`, `burstana.py` | first-burst analysis; burst-gated spectrum and occupied bandwidth; burst structure in a packer-2 dump |
+| `txmeter.py`, `txscan.py`, `txscansum.py` | OFDM timing of another card's bursts; the streaming TX timing scan; its summary by time |
+| `dacana.py`, `dacsess.py`, `toneana.py`, `tonephase.py` | tone-DAC line analysis per segment and per session; CW phase track; packer sampling instants |
+
+**Card + X410 test scripts**
+| file | what it is |
+|---|---|
+| `measure.sh`, `regtry.sh`, `bisect.sh`, `txprobe.sh`, `capnb.sh` | card A transmits with register changes; the X410 measures width, bursts and OFDM timing |
+| `nbtest.sh`, `nbmulti.sh`, `rxsweep.sh`, `rxmatrix.sh`, `codesweep.sh` | card B narrow-reception searches against X410 frames |
+| `phycnt.sh`, `pdcnt.sh`, `aterxcnt.sh` | PHY counter readouts around X410 bursts (packet detect, ATE) |
+| `streamtest.sh`, `c2cstream.sh` | end-to-end IQ-stream reception: X410 → card; card → card |

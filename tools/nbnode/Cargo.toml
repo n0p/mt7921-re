@@ -1,0 +1,38 @@
+[package]
+name = "nbnode"
+version = "0.1.0"
+edition = "2021"
+description = "Narrow-band (2.5/5/10 MHz) IEEE 802.11a/p nodes for MT7921AU cards: a dependency-free Rust port of tools/sdr/rx80211.py, the nbmesh mesh daemon and the p11node 802.11p receiver"
+publish = false
+
+# std only, by design: the decoder runs on an embedded host next to the MT7921 card.
+[dependencies]
+
+[lib]
+name = "nbnode"
+path = "src/lib.rs"
+
+# Decodes an IQ file (.cf32 / .cs16), the Rust counterpart of `rx80211.py <file>`.
+[[bin]]
+name = "rxfile"
+path = "src/bin/rxfile.rs"
+
+# The narrow-band (5 / 2.5 MHz) mesh node on one card: TUN or TAP interface, packet FEC, half-duplex IQ slices.
+[[bin]]
+name = "nbmesh"
+path = "src/bin/nbmesh.rs"
+
+# The 802.11p (10 MHz, 5.9 GHz) receiving node on one card: IQ at 30 Msps, frames to TAP / TUN / pcap.
+[[bin]]
+name = "p11node"
+path = "src/bin/p11node.rs"
+
+[profile.release]
+# One code-generation unit plus LTO let the optimiser inline the small DSP helpers (complex arithmetic, dot products)
+# into the hot loops.
+codegen-units = 1
+lto = true
+
+[profile.test]
+# The integration tests decode about 1 MB test vectors; unoptimised code would make `cargo test` needlessly slow.
+opt-level = 2

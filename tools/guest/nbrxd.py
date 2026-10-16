@@ -8,7 +8,9 @@ Frames with a valid FCS are written to a radiotap pcap and/or a TAP interface (8
 addressing: addr1 = destination, addr2 = source).
 
 Usage: nbrxd.py <A|B> <MHz> [options]
-  --width W          channel width of the frames in MHz (default 5; 10 = 802.11p, 2.5 = the ÷8 transmitter)
+  --width W          channel width of the frames in MHz (default 5; 10 = 802.11p, 2.5 = the ÷8 transmitter, whose
+                     fixed padding here only covers frames up to ~150 bytes: notes/10 §5; tools/nbnode nbmesh pads
+                     by length)
   --gain l,f,d       manual gain: LNA 0-3, filter 0-8, digital 0-12 (default 3,4,6)
   --thresh N         fixed energy gate on the mean DC-removed |I|+|Q| per 128 samples (default: none with --ratio,
                      otherwise from the LNA code)
@@ -101,10 +103,11 @@ MON = {"A": "mon_a", "B": "mon_b"}
 TX_SA = bytes.fromhex("020000000001")
 
 
-# The ÷8 transmitter (BN_MODE 0x83081000 [30:28] = 7: 2.5 MHz OFDM) drops the last 3 OFDM symbols of every PPDU, so the
-# hardware FCS never survives (measured 2026-10-15: 322 of 322 copies intact up to the last 7 bytes, those always lost).
+# The ÷8 transmitter (BN_MODE 0x83081000 [30:28] = 7: 2.5 MHz OFDM) ends every PPDU early, so the hardware FCS never
+# survives (measured 2026-10-15 on 119-byte frames: 322 of 322 copies intact up to the last 7 bytes, those always lost).
 # In that mode the sender appends its own CRC32 of the body plus DIV8_PAD_SYMS + 1 symbols of padding, and the receiver
-# checks that CRC instead of the FCS.
+# checks that CRC instead of the FCS. The loss grows with the frame (~30 + N/2 of N symbols arrive, notes/10 §5), so this
+# fixed padding only covers frames up to ~150 bytes; tools/nbnode nbmesh pads by length.
 DIV8_PAD_SYMS = 3
 NDBPS = {12: 24, 18: 36, 24: 48, 36: 72, 48: 96, 72: 144, 96: 192, 108: 216}  # rate (500 kbps units) -> bits/symbol
 
@@ -181,6 +184,11 @@ class Card:
         print(f"# {self.phy} tuned to {f_khz / 1000:.3f} MHz (cbw {self.cbw})", file=sys.stderr, flush=True)
         if abs(f_khz - self.mhz * 1000) > 1000:
             raise RuntimeError(f"{self.phy}: tuned to {f_khz} kHz instead of {self.mhz} MHz")
+        if self.cbw == 4:
+            # MAC tick at 5 MHz timing (MCU write of WFSYS_TICKCR0 [4:0] = 0xa; only these bits of WFSYS_ON may be
+            # written): the switch at cbw 4 leaves 0x5 (10 MHz timing), and the card then cuts every 5 MHz frame
+            # longer than ~260 bytes (notes/10 §5)
+            self.rmw(0x820B00A0, 0x1F, 0xA)
         if self.div8:  # ÷8 transmitter: switch the divider first. Changed later (at the first TX window, after the
             # capture setup), the PA keys an unmodulated carrier instead of the PPDU (measured 2026-10-15)
             self.rmw(0x83081000, 0x70000000, 0x70000000)

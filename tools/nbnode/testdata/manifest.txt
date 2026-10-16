@@ -1,0 +1,62 @@
+nbnode test vectors, written by gen.py (python3 -I tools/nbnode/testdata/gen.py; deterministic).
+Python reference decodes: tools/sdr/rx80211.py sha1 a236d08440c1fd6b83962324d61b254561cc0a0b, STF_THRESH 0.6, H_SMOOTH 1, LTF search derotated by the STF CFO.
+.cf32 = numpy complex64 (interleaved little-endian float32 I/Q); unless noted, at the 20 Msps-equivalent rate
+(e.g. a 10 MHz channel at 10 Msps). Frames: unit power, noise variance 10^(-SNR/10) per sample.
+.truth: transmitted frames; .<mode>.pyref: rx80211.decode_all results, modes plain (max_frames 200, min_snr None, max_len 4095) and nbrxd (200, -1 dB, 1600).
+
+rates_hi.cf32  (174316 samples, 1394528 bytes)
+    24 frames: rates 6..54 Mbps x payloads of 40/300/1200 bytes (+28 header/FCS), 30 dB, CFO uniform in +-0.025 cycles/sample (beyond the +-0.009 of the original non-derotated LTF search), 1500 samples of noise before, 600-1400 between, 1000 after
+rates_hi.truth
+    24 transmitted frames: rates_hi.cf32, 20 Msps-equivalent rate
+rates_hi.plain.pyref
+    rx80211.decode_all, plain settings: 34 frames, 24 with a good FCS
+rates_hi.nbrxd.pyref
+    rx80211.decode_all, nbrxd settings: 24 frames, 24 with a good FCS
+rates_lo.cf32  (162695 samples, 1301560 bytes)
+    64 frames, 8 per rate, 128-byte MPDUs, each rate at an SNR near its threshold (6M 1.5 dB, 9M 2.5 dB, 12M 4 dB, 18M 6.5 dB, 24M 8.5 dB, 36M 12 dB, 48M 15.5 dB, 54M 17 dB); CFO uniform in +-0.02 cycles/sample
+rates_lo.truth
+    64 transmitted frames: rates_lo.cf32, 20 Msps-equivalent rate
+rates_lo.plain.pyref
+    rx80211.decode_all, plain settings: 66 frames, 47 with a good FCS
+rates_lo.nbrxd.pyref
+    rx80211.decode_all, nbrxd settings: 64 frames, 48 with a good FCS
+wide30.cf32  (83559 samples, 668472 bytes)
+    30 Msps capture of a 10 MHz channel: 8 frames (one per rate, 178-byte MPDUs) built at 10 Msps, upsampled x3 (resample_poly), plus a 0.4-0.3j DC offset and white noise for 25 dB in-band SNR; CFO uniform in +-0.02 cycles/sample at 10 Msps. Decode with --in-rate 30 --width-rate 10
+wide30.truth
+    8 transmitted frames: wide30.cf32; start samples at the 10 Msps decode rate
+wide30.nbrxd.pyref
+    rx80211.decode_all, nbrxd settings: 8 frames, 8 with a good FCS
+cw.cf32  (55051 samples, 440408 bytes)
+    30000 samples of a CW tone at 0.11 cycles/sample (+9.5 dB re unit power), then 10000 samples of a 2+0.5j DC offset (both autocorrelate like an STF: the flatness gate must reject them), then 3 frames (6/12/24 Mbps, 228-byte MPDUs, 25 dB) with the tone continuing at -20 dBc; noise throughout at -25 dB
+cw.truth
+    3 transmitted frames: cw.cf32, 20 Msps-equivalent rate; no frames before the third section
+cw.plain.pyref
+    rx80211.decode_all, plain settings: 3 frames, 3 with a good FCS
+cw.nbrxd.pyref
+    rx80211.decode_all, nbrxd settings: 3 frames, 3 with a good FCS
+cfo_wide.cf32  (21343 samples, 170744 bytes)
+    8 frames (one per rate, 128-byte MPDUs, 25 dB) with CFO 0.045 +- 0.002 cycles/sample, beyond the STF estimator's +-1/32; decodable with cfo_offset 0.04
+cfo_wide.truth
+    8 transmitted frames: cfo_wide.cf32, 20 Msps-equivalent rate
+cfo_wide.nbrxd.pyref
+    rx80211.decode_all, nbrxd settings: 0 frames, 0 with a good FCS
+cfo_wide.nbrxd_offset.pyref
+    rx80211.decode_all, nbrxd settings + cfo_offset 0.04: 8 frames, 8 with a good FCS
+rs_in.cf32  (3000 samples, 24000 bytes)
+    3000 samples: unit complex white noise plus a 0.01 cycles/sample tone, the resampler test input
+rs_1_2.cf32  (1500 samples, 12000 bytes)
+    scipy.signal.resample_poly(rs_in, 1, 2) (numpy port, computed in double precision)
+rs_1_3.cf32  (1000 samples, 8000 bytes)
+    scipy.signal.resample_poly(rs_in, 1, 3) (numpy port, computed in double precision)
+rs_1_4.cf32  (750 samples, 6000 bytes)
+    scipy.signal.resample_poly(rs_in, 1, 4) (numpy port, computed in double precision)
+rs_1_6.cf32  (500 samples, 4000 bytes)
+    scipy.signal.resample_poly(rs_in, 1, 6) (numpy port, computed in double precision)
+rs_1_12.cf32  (250 samples, 2000 bytes)
+    scipy.signal.resample_poly(rs_in, 1, 12) (numpy port, computed in double precision)
+rs_3_1.cf32  (9000 samples, 72000 bytes)
+    scipy.signal.resample_poly(rs_in, 3, 1) (numpy port, computed in double precision)
+rs_2_3.cf32  (2000 samples, 16000 bytes)
+    scipy.signal.resample_poly(rs_in, 2, 3) (numpy port, computed in double precision)
+vit_cases.txt, vit_llr.f32, vit_bits.u8
+    7 Viterbi cases (clean, noisy, punctured 3/4 with erasures, integer values with exact ties, all zeros, large values): float32 soft values and the bits vit.c decodes from them

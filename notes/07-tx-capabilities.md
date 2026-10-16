@@ -196,7 +196,7 @@ channel 2350 MHz.
 | 0xd | true 40 MHz PHY (cbw 1, centre ch 3: BN_MODE 0x81000000) | 5 MHz PPDU, centred on the LO (no primary-channel offset) |
 | 0xc | 40 or 80 MHz PHY | no emission |
 | 0xe | any | no emission |
-| 0xf | 20 MHz / narrow base | 2.5 MHz PPDU (divide by 8; last 3 symbols lost, notes/09) |
+| 0xf | 20 MHz / narrow base | 2.5 MHz PPDU (divide by 8; the PPDU's end is lost, more on longer frames: notes/10 §5) |
 | 0x4, 0x5 (bit 31 clear) | 20 MHz base | ~96 us bursts at 5 MHz timing (preamble + SIGNAL), aborted and retried hundreds of times |
 | 0x0, 0x1, 0x3 | 20 MHz base | bursts that decode at no width |
 | 0x2, 0x7 | 20 MHz base | no emission |

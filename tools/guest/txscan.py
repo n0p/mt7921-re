@@ -7,7 +7,8 @@ Usage: txscan.py <MHz> <config> [config ...]
   config: writes separated by commas: "reg=value", "reg|=bits", "reg&=mask", "reg^=bits", or "p:param=value" for an mt7921dbg
           module parameter (tx_bw, tx_rate, tx_count); "-" = none (a reference group)
   env BASE: writes applied once after the channel switch (same syntax), e.g. BASE=0x820b00a0=0x5
-  env CBW: card B's chsw.py bandwidth (default 0 = 20 MHz), CTR its centre channel (default 1; 3 for a 40 MHz PHY);
+  env CBW: card B's chsw.py bandwidth (default 0 = 20 MHz), CTR its centre channel (default 1; 3 for a 40 MHz PHY),
+  TXS / RXM the TX stream count and RX chain mask (default 1 / 1; TXS=2 for STBC);
   env RATE: inject rate in 500 kbps (default 12)
 """
 import os
@@ -71,8 +72,10 @@ def main():
     subprocess.run(["./rigreset.sh"], stdout=subprocess.DEVNULL)
     pb = open("/sys/class/net/wlx00c0cab79628/phy80211/name").read().strip()
     subprocess.run(["python3", "chsw.py", pb, "11", "0", "0"], stdout=subprocess.DEVNULL)
-    subprocess.run(["python3", "chsw.py", pb, "1", "0", os.environ.get("CBW", "0"), "1", "1", str(f),
-                    os.environ.get("CTR", "1")], stdout=subprocess.DEVNULL)
+    # CHANNEL_SWITCH: control channel 1 (band 0) with the frequency override; env TXS = TX streams (2 for STBC: both
+    # chains), RXM = RX chain mask
+    subprocess.run(["python3", "chsw.py", pb, "1", "0", os.environ.get("CBW", "0"), os.environ.get("TXS", "1"),
+                    os.environ.get("RXM", "1"), str(f), os.environ.get("CTR", "1")], stdout=subprocess.DEVNULL)
     apply(pb, parse(os.environ.get("BASE", "")))
     wr(pb, 0x820e3000, rd(pb, 0x820e3000) & ~0x100)  # MAC TX on
     m = "/sys/module/mt7921dbg/parameters/tx_count"
@@ -119,12 +122,15 @@ def main():
                 print(f"capture ended early at config {i}")
                 break
     finally:
-        for p in ("tx_count", "tx_bw", "tx_rate"):
+        for p in ("tx_count", "tx_bw", "tx_rate", "tx_dw6_set", "tx_dw6_clr"):
             open(PARAMS + p, "w").write("0")
     cap.wait()
     open("/tmp/txscan.labels", "w").write("\n".join(labels) + "\n")
     subprocess.run(["python3", "txscan.py", DUMP, "8", "350", "/tmp/txscan.labels"], cwd=D + "/sdr")
-    os.remove(DUMP)
+    if os.environ.get("KEEP"):  # env KEEP=<path>: keep the gated dump for offline work (e.g. sdr/perawgn.py)
+        os.replace(DUMP, os.environ["KEEP"])
+    else:
+        os.remove(DUMP)
 
 
 if __name__ == "__main__":

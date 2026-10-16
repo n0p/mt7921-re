@@ -14,6 +14,7 @@ from scipy.signal import lfilter, resample_poly
 
 import iqrec
 import rx80211
+import sigdec
 
 MAXKEEP_S = 3e-3
 MAXSHOW = 6  # bursts printed per group (continuous sources make thousands)
@@ -61,14 +62,23 @@ def decode(seg, fs, width):
     fr = Fraction(width / (fs / 1e6)).limit_denominator(1000)
     y = resample_poly(seg, fr.numerator, fr.denominator).astype(np.complex64) if fr != 1 else seg
     y = lfilter([1, -1], [1, -(1 - 2 * np.pi * 20e3 / (width * 1e6))], y).astype(np.complex64)
+    # the PPDU format and coding fields as transmitted (HT-SIG / HE-SIG-A carry a CRC): the FEC exploration's check
+    # that the card honoured the requested LDPC / STBC / DCM / GI (notes/10)
+    sig = sigdec.analyze(y, 1)
+    fmt = ""
+    if sig:
+        g = sig[0]
+        keys = ("crc_ok", "mcs", "ldpc", "stbc", "sgi", "dcm", "gi_ltf", "nsts", "ht_len") if g["fmt"] != "legacy" else \
+            ("lsig_rate", "lsig_len", "q1", "q2", "rl")  # legacy: the classifier's metrics, to spot a missed format
+        fmt = " [" + g["fmt"] + "".join(f" {k}={g[k]}" for k in keys if k in g) + "]"
     res = rx80211.decode_all(y, 2, 0.0)
     if not res:
-        return "-"
+        return "-" + fmt
     r = res[0]
     ok = r["fcs_ok"] or b"MT7921-NBW" in r["mpdu"]
     k = r["mpdu"].find(b"MT7921-NBW-")
     tag = r["mpdu"][k + 11:k + 19].decode("ascii", "replace") if k >= 0 else ""
-    return f"{r['rate']}M/{r['length']}B {'ok' if ok else 'bad'}" + (f" id={tag}" if tag.isdigit() else "")
+    return f"{r['rate']}M/{r['length']}B {'ok' if ok else 'bad'}" + (f" id={tag}" if tag.isdigit() else "") + fmt
 
 
 def bursts(path, pack):
@@ -152,7 +162,10 @@ def main():
             tally[width] = tally.get(width, 0) + 1
             if j >= MAXSHOW:
                 continue
-            dec = decode(y, fs, width) if width and width <= fs / 1e6 else "-"
+            # unknown width (e.g. HE at /4: 51.2 us symbols, beyond the CP search): still read the SIG fields at the
+            # width of the legacy preamble (env SIGW, MHz; default 5 = the /4 transmitter)
+            w = width or float(__import__("os").environ.get("SIGW", "5"))
+            dec = decode(y, fs, w) if w <= fs / 1e6 else "-"
             pw = 10 * np.log10(np.mean(np.abs(body[:int(40e-6 * fs)]) ** 2) / noise)
             S = np.abs(np.fft.fftshift(np.fft.fft(body * np.hanning(len(body)), 8192))) ** 2
             occ = ((np.arange(8192) - 4096) / 8192 * fs / 1e6)[S > S.max() * 0.01]

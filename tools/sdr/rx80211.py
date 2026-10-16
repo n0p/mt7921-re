@@ -14,6 +14,8 @@ import numpy as np
 from ofdm80211 import DATA_SC, PILOT_SC, PILOT_BASE, POLARITY, RATES, preamble
 
 RATE_BY_BITS = {v[0]: k for k, v in RATES.items()}
+STF_THRESH = 0.6  # detection threshold on the normalised STF autocorrelation (see decode_all; notes/10)
+H_SMOOTH = 1  # channel-estimate smoothing: average each subcarrier with this many neighbours per side (0 = off; notes/10)
 LTF_FREQ = None
 
 
@@ -222,6 +224,16 @@ def decode_at(iq, t0, min_snr=None, max_len=4095):
         return None
     h = lt / np.where(np.abs(_ltf_freq()) > 0, _ltf_freq(), 1)
     h[np.abs(_ltf_freq()) == 0] = 1
+    if H_SMOOTH:
+        # average each occupied subcarrier's estimate with its neighbours (the two LTF symbols alone leave the estimate
+        # as noisy as the data at low SNR; a narrow channel's response changes little across a few subcarriers)
+        k = np.arange(-26, 27)
+        k = k[k != 0]
+        hs = h.copy()
+        for kk in k:
+            nb = [j for j in range(kk - H_SMOOTH, kk + H_SMOOTH + 1) if j != 0 and -26 <= j <= 26]
+            hs[kk % 64] = np.mean([h[j % 64] for j in nb])
+        h = hs
     # channel-state weights for the soft bits: zero-forcing alone lets the noise of subcarriers attenuated by the
     # receive filters' edges dominate the Viterbi metric
     w = np.abs(np.array([h[k % 64] for k in DATA_SC])) ** 2
@@ -269,7 +281,10 @@ def decode_all(iq, max_frames=50, min_snr=None, max_len=4095):
     m = np.abs(c) / (p + 1e-9)
     res, i = [], 0
     ltf_t = preamble()[192:256]
-    cand = np.flatnonzero(m > 0.85)  # STF candidates; jump between them instead of walking every sample
+    # STF candidates; jump between them instead of walking every sample. The normalised lag-16 autocorrelation of an
+    # STF in white noise is about SNR / (SNR + 1), so the threshold sets the detection floor: 0.85 needs ~7.5 dB
+    # (notes/10). False alarms are cheap: L-SIG parity and the FCS reject them.
+    cand = np.flatnonzero(m > STF_THRESH)
     while len(res) < max_frames:
         k = np.searchsorted(cand, i)
         if k >= len(cand):
@@ -279,7 +294,13 @@ def decode_all(iq, max_frames=50, min_snr=None, max_len=4095):
         w0, w1 = i + 100, min(len(iq) - 64, i + 260)
         if w1 <= w0:
             break
-        xc = np.abs(np.correlate(iq[w0:w1 + 64], ltf_t, "valid"))
+        # derotate the search window by the STF's coarse CFO first: uncorrected, the 64-sample LTF correlation
+        # collapses like a sinc (first null at 1/64 cycle/sample) and picks a wrong lag beyond about +-0.009
+        # cycles/sample, i.e. +-45 kHz at 5 Msps, less than two +-20 ppm crystals at 2.4 GHz can differ
+        seg = iq[i:i + 144]
+        f0 = np.angle(np.vdot(seg[:-16], seg[16:])) / (2 * np.pi * 16)
+        win = iq[w0:w1 + 64] * np.exp(-2j * np.pi * f0 * np.arange(w1 + 64 - w0))
+        xc = np.abs(np.correlate(win, ltf_t, "valid"))
         k = w0 + int(np.argmax(xc))
         # the strongest peak can be either LTF symbol: try both alignments
         r = decode_at(iq, k, min_snr, max_len) or decode_at(iq, k - 64, min_snr, max_len)

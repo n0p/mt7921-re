@@ -1,7 +1,7 @@
 #!/bin/bash
 # Why does the tone-DAC output collapse? Card TXC (default A) repeats the same playback (+15.6 kHz at 250 ksps, 0.5 s;
 # fw hk_dacplay) in separate tone sessions under three variants, while an X410 capture records (tools/sdr/capture.py,
-# RX1; analyse with dacsess.py): plain; 0x8300c000/0x8301c000 back to the stock TSSI control 0xc0c80806 after the tone
+# RX1; analyse with tools/sdr/dacsess.py): plain; 0x8300c000/0x8301c000 back to the stock TSSI control 0xc0c80806 after the tone
 # starts (TxTone writes 0x00274027); the tone power override 0x8300c508 [31]/[15] cleared.
 # Usage: dactssi.sh [MHz 2350]   env TXC, DELAY (s before the first tone, 8), REPS (2)
 cd /root/fwre
