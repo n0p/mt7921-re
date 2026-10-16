@@ -3,7 +3,8 @@
 # 0x83083008 = 0x007fc0ff, 0x83080014 = 0x0103ffff, then both 0; rf:reg=val = A-die), PHY RX counters enabled
 # (0x83088234 |= 0x30000, 0x83082004 [11:9]/[2:0] = 5/5, reset pulse 0x83088230 bit 29), then for each X410 width:
 # counter deltas over a burst of 200 frames. Counters (firmware FUN_936cc8 / FUN_9624f2 decode):
-#   0x83081010 OFDM-PD | CCK-PD   0x83081014 OFDM-MDRDY | CCK-MDRDY   0x8308101c CCK-SIGerr | CCK-SFDerr
+#   0x83081010 OFDM-PD | CCK-PD   0x83081014 OFDM-MDRDY | CCK-MDRDY   0x83081018 RxOk (every frame handed to the MAC)
+#   0x8308101c CCK-SIGerr | CCK-SFDerr
 #   0x83081020 OFDM-SIGerr | OFDM-TAGerr   0x83081024 OFDM-FCSerr | CCK-FCSerr      ([31:16] | [15:0])
 # Usage: pdcnt.sh <cbw> <W reg=val,...|-> <X410 widths, e.g. "20 10 5">
 # Env FREQ=<MHz>: tune card B with the CHANNEL_SWITCH frequency override (2.4 GHz band, e.g. 2350 in the 13 cm
@@ -37,7 +38,7 @@ for w in $X; do
 	python3 - "$w" "$a" "$b" <<'PY'
 import sys
 w, a, b = sys.argv[1], [int(x, 16) for x in sys.argv[2].split()], [int(x, 16) for x in sys.argv[3].split()]
-names = {0: ("OFDM-PD", "CCK-PD"), 1: ("OFDM-MDRDY", "CCK-MDRDY"), 3: ("CCK-SIGerr", "CCK-SFDerr"),
+names = {0: ("OFDM-PD", "CCK-PD"), 1: ("OFDM-MDRDY", "CCK-MDRDY"), 2: ("OFDM-RxOk", "CCK-RxOk"), 3: ("CCK-SIGerr", "CCK-SFDerr"),
          4: ("OFDM-SIGerr", "OFDM-TAGerr"), 5: ("OFDM-FCSerr", "CCK-FCSerr")}
 out = []
 for i, (hi, lo) in names.items():

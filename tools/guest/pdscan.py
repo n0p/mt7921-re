@@ -12,7 +12,10 @@ word, and reports candidates whose MDRDY + SIG errors exceed the baseline: the p
   pdscan.py <phy> <T s> list <addr=val>...   explicit candidates (all printed when there are at most 64)
 A candidate is a hit when MDRDY + SIG errors exceed the baseline, or when RxOk (good-FCS frames: with a reference
 transmitter on air, real decodes) does.
+env SCORE=good: a hit is only RxOk - FCS errors (frames handed to the MAC with a good FCS) above the baseline, and every
+candidate is printed (for bases where noise alone already gives MDRDY, e.g. 0xd4 with 0x83088014 [31:24] = 0x75).
 """
+import os
 import struct
 import sys
 import time
@@ -43,8 +46,11 @@ def counters(phy):
 
 def measure(phy, t):
     clear(phy)
+    t0 = time.time()
     time.sleep(t)
-    return counters(phy)
+    c = counters(phy)
+    c["t0"], c["t1"] = round(t0, 3), round(time.time(), 3)  # the window, to match a monitor capture (rxscan10.sh)
+    return c
 
 
 def dump(phy, page):
@@ -91,8 +97,11 @@ def main():
         except SystemExit as e:
             print(f"ERROR at {label}: {e}", flush=True)
             raise
-        hit = c["mdrdy"] + c["sig"] > thr or c["rxok"] > max(b["rxok"] for b in base) + 2
-        if hit or n % 50 == 0 or len(cands) <= 64:
+        if os.environ.get("SCORE") == "good":
+            hit = c["rxok"] - c["fcs"] > max(b["rxok"] - b["fcs"] for b in base) + 2
+        else:
+            hit = c["mdrdy"] + c["sig"] > thr or c["rxok"] > max(b["rxok"] for b in base) + 2
+        if hit or n % 50 == 0 or len(cands) <= 64 or os.environ.get("SCORE") == "good":
             print(f"{'HIT ' if hit else '    '}{n:4d} {label}: {c}", flush=True)
 
 

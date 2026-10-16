@@ -23,7 +23,7 @@ GCI module 0x5a (`crmap.txt:1120`) has the same field lists as MT7996 ICAPCR0..1
   called by the RAM firmware. **Nothing ever writes CR10 [17:16].**
 
 ## 2. Firmware SRAM modes 0 and 1 (question 1)
-- `FUN_96b96c(m)` (all.c:94842): ROM `0x832238` sets CR10[28:26] = 0 / 7, ROM `0x832262` sets CR10[31] = m, then
+- `FUN_96b96c(m)` (all.c @0x96b96c): ROM `0x832238` sets CR10[28:26] = 0 / 7, ROM `0x832262` sets CR10[31] = m, then
   `FUN_96be72` sets 0x88009004[27:24] = 0 / 0xf (the "lend" or bank grant, MT7996 cap_route GRANT_B). Ring bounds
   `FUN_96be4e` / `FUN_96be5c`: mode 0 = units 0..0xfffc, mode 1 = 0x20000..0x23ffc. [static]
 - The stock start (`ext_cmd_56` op 0 → `FUN_95c58a`, dis 0x95c5a8: `ifcall9` to `jal FUN_96b96c` with a0 = 1)
@@ -59,7 +59,7 @@ GCI module 0x5a (`crmap.txt:1120`) has the same field lists as MT7996 ICAPCR0..1
 - RAM firmware init (`FUN_00916758` state 2) → `FUN_0094bb3e(boot mode)` → `FUN_0094ba1e(key)`. The key picks
   {PLE banks, PSE banks} from the table at live 0x0202ee44 (12 × {u32 key, u16, u16}) and the quota rows at
   0x0202ed6c (PLE, 3 × 6 B) and 0x0202e9c4 (PSE, 13 × 6 B). The boot mode is the TEST_CTRL switch-mode value
-  (`ce_cmd_01`, all.c:32569: 0 normal, 1 testmode, 2 ICAP):
+  (`ce_cmd_01`, all.c @0x933c84: 0 normal, 1 testmode, 2 ICAP):
   - normal → key 1 → profile 6: PLE 10, PSE 214 (live);
   - **ICAP mode (2)**: `0x82c79a(1, 2, 0)` (ICAP first), `0x82c7ba(128)`, key 5 → profile 4: PLE 10, PSE 54. The layout
     becomes **ICAP 0xe0200000..0xe023ffff (256 KiB = the mode-0 ring)**, PLE 0xe0240000, PSE 0xe0245000..0xe025ffff,

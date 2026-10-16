@@ -478,3 +478,44 @@
 - **The rig VM is now 12 vCPU / 8 GB, with one emulated xHCI per card and pinned IRQs** (lorien `~/vm23.sh`).
   - Card USB wedges remain the main reliability problem.
   - Recovery: usbreset both cards on lorien, then system_reset, loadstack, insmod, rigreset.
+
+## 2026-10-16: the last receive levers (goal: 10 MHz in the card's own PHY)
+Card B, 2350 MHz, X410 802.11a/p frames. Tools: tools/sdr/pdcnt.sh (now also prints RxOk 0x83081018) and
+tools/sdr/nbtest.sh (frames from the X410's SA with a good FCS on mon_b, mt7921dbg `rxbw_fix=1`).
+- **Class 4/5 against 2.5 MHz frames.** On TX the class field alone switches the generator to ÷8 (notes/07), so the
+  demodulator was tested against the matching width. 0x84/0x85 at the 20 MHz base: PD counts but MDRDY = 0 for 20 and
+  2.5 MHz frames; the 0x80 baseline gives MDRDY 284 for 20 MHz frames and noise-level counts for 2.5 MHz.
+- **R1** (research report: class code behind the narrow front end, RXFE_CTRL 0x8308f064 [7:4] = the same code,
+  0x83088014 [31:24] rescaled; stock at cbw 4: 0x01010000 / 0xea070808):
+  - [31:24] = 0x3a: MDRDY = 0.
+  - [31:24] = 0x75: hundreds to thousands of MDRDY, mostly SIG errors, for 10 and 20 MHz frames alike. FCS errors
+    appear only with 20 MHz frames.
+  - Monitor counts: 0xd4 + code 4 + 0x75: 20 MHz 149/200, 10 MHz 0/200, 5 MHz 0/200. 0xd5 + code 5 + 0x75: 0/200 for
+    both.
+  - RXFE_CTRL [7:4] changes nothing measurable.
+- **MAN_DOWNSAMP** (0x8308f068 [1:0] = 1, 2, 3) and AFIFO_CK320M ([3]) at the plain 20 MHz configuration (previously
+  tried only at cbw 4): 20 MHz frames 169, 193, 174 and 158 of 200; 10 MHz frames 0/200. The manual decimation does not
+  re-time the demodulator.
+- **No half-rate PHY clock.** 0x820b00a8 [11:10] and A-die RF 0xbc (FUN_9397ea) are the WF power states: 3 / 0x11 on
+  wake (call mode 2), 2 / 1 for sleep (mode 3). No clock-rate selection was found; the clock-mode roots stay on the
+  hazard list.
+- **Conclusion (confirmed): the demodulator decodes only 20 MHz numerology, and no reachable control re-times it.**
+  10 MHz (802.11p) reception stays on the IQ path (notes/09: 296/300). Together with notes/07 (the TX generator runs at
+  ÷1, ÷4 or ÷8 only), native 10 MHz Wi-Fi is not possible on the MT7961.
+- **Field scan with a frame oracle** (tools/guest/rxscan10.sh, pdscan.py SCORE=good, rx10match.py).
+  - Base: native cbw 4 + 0xd4000000 + RXFE_CTRL code 4 + 0x83088014 [31:24] = 0x75. Here the demodulator decodes 20 MHz
+    frames off a 20 Msps stream (149/200 above). A field that restored its internal ÷2 would make it decode 802.11p.
+  - Candidates: each byte of every stable word in the demodulator page 0x83088000, the front-end page 0x8308f000,
+    0x83086000, 0x83085000 and 0x83082000, doubled and halved. 1481 candidates, 0.4 s each.
+  - Reference: the X410 sends 802.11p 10 MHz frames throughout (tools/sdr/txloop.py, ~180/s). tcpdump on mon_b
+    timestamps every frame from its SA, and a hit is a good-FCS reference frame inside a candidate's window.
+  - PHY counters alone are not an oracle here. With [31:24] = 0x75, noise alone hands 5–25 "frames" per window to the
+    MAC with the FCS-error counter at 0.
+  - **Result: 0 frames from the X410's SA, good or bad FCS, in all 1484 windows** (3 baseline plus 1481 candidates).
+  - Positive control during the same 605 s: card A's IQ path (nbrxd `--pack 8 --width 10`) decoded 113 531 of the X410's
+    frames, the first at 0.4 s and the last at 608.6 s of its run. A separate 300-frame check gave card A 300/300 good
+    FCS and card B 0/300.
+  - Caution: two earlier attempts used txframes.py with 200 000 frames. It builds the whole waveform in RAM (~88 GB),
+    died silently, and never transmitted. Use txloop.py for continuous traffic.
+  - **Conclusion: no single field in the receive pages re-times the demodulator. 10 MHz reception exists only on the
+    IQ path.**

@@ -1,0 +1,81 @@
+0x0080187e	func	tmrNow	Returns the MCU timer 0x89020034 (time base of the ROM's timeouts and delays).
+0x00802160	func	tmrDelay	Busy-wait n + 1 ticks of tmrNow.
+0x00802178	func	tmrDelay2	Busy-wait n + 1 ticks of a second timer (FUN_801f16).
+0x00800506	func	romAssert	Assert failure: (source file, line); halts with the location.
+0x008004ac	func	romAssertMsg	Assert with a message: (source file, line, format, a, b, c).
+0x00800930	func	irqRegister	Registers an interrupt handler: (vector, handler, name string).
+0x00800bba	func	irqConfigure	Interrupt configuration through DLM 0x02002024 (vector, mode).
+0x00800bc4	func	irqMask	Masks an interrupt line (0x89010090 / 0x89010094 by line number).
+0x00800c0a	func	irqUnmask	Unmasks an interrupt line (0x89010080 / 0x89010084 by line number).
+0x00800c7e	func	irqSave	Disables interrupts (GIE) and saves the previous PSW state into *out.
+0x0080ab32	func	connAfeSetXtal	Per-crystal CONN AFE setup (xtal_hz = 24/25/26/40 MHz): CONN_AFE_XTALCNT 0x7c0030f4 = two crystal-cycle counts (50.5 and 30.3 x f_MHz); CONN_AFE_XTALMODE 0x7c003004 [1:0]/[7:6] = 2/1 for 24 AND 40 MHz (3/3 for 25, 3/1 for 26), [3:2] = [17:16] = 3. Identical codes for 24 and 40 MHz: crystal-type settings, not PLL ratios; no clock divider here (notes/07). HAZARD: never write these.
+0x00806de6	func	connAfeInitPulse	CONN AFE init pulse sequence on 0x7c003000/04/08 bits (reset/enable steps with delays).
+0x00826aac	func	gciModuleIfcInit	Fills the module interface array DLM 0x02014f04 + 4*module (0x5c modules): base addresses and field tables per module (notes/05, work/crmap).
+0x0082693a	func	gciAccessorInit	Fills the GCI accessor table DLM 0x02013800..0x0201388c (MT7996 'FIT').
+0x00826860	func	gciGetModuleIfc	GetChipModuleIfc(module) = *(gp + 73476 + 4*module); module < 92 (accessor +0x84).
+0x00826b70	func	gciSet	Set(selector, value): one read-modify-write (accessor +0x0c). Selector = module<<16 | group<<5 | field.
+0x00826b7a	func	gciSetPairs	Varargs pairs (n, sel, val, ...): one read-modify-write per pair (accessor +0x20, MT7996 non-transaction setter).
+0x00826bb0	func	gciSetPairsTxn	Transaction varargs set (accessor +0x28).
+0x00826c22	func	gciGetCore	Common getter behind gciGetByte/Word/Dword.
+0x00826c7e	func	gciGetByte	Get byte (sel, *out) (accessor +0x00).
+0x00826c90	func	gciGetWord	Get word (sel, *out) (accessor +0x04).
+0x00826ca2	func	gciGetDword	Get dword (sel, *out) (accessor +0x08).
+0x00826cde	func	gciSetTriples	Varargs triples, n % 3 == 0 (accessor +0x1c).
+0x008282e6	func	macSetIfs	MAC IFS setter: type 0 = slot, 1 = SIFS, 2 = RIFS, 3 = EIFS.
+0x00828848	func	macIfsInitRom	MAC IFS init (called from RAM macIfsInit).
+0x008288d0	func	tmacSetDtrRom	TMAC CDTR 0x820e40c8 / ODTR 0x820e40cc ([31:16] / [15:0]).
+0x0082c2d6	func	lpSetTimers	Low-power timers 0x820b00a4 [11:0], 0x820b00c0..d4 from a config struct.
+0x0082c74a	func	sramBankCfg	Bank configuration word: 2 KiB banks, [31] page size (PLE 0 = 64 B, PSE 0 = 128 B).
+0x0082c79a	func	sramPartitionOrder	(ple, pse, icap) positions of the PLE / PSE / ICAP partitions (must differ); MT7996's PLE/PSE/ICAP partition. ICAP mode uses (1, 2, 0).
+0x0082c7ba	func	sramPartitionBanks	(banks) partition size; ICAP mode uses 128.
+0x0082c7c2	func	pseSetBanks	PSE bank count (banks << 4).
+0x0082c838	func	pleSetBanks	PLE bank count (banks << 5).
+0x0082cbc4	func	sramWaitDone1	Waits for the partition update to finish.
+0x0082cbee	func	sramWaitDone2	Waits for the partition update to finish.
+0x00832222	func	icapSetCr10Bit18	ICAP_CR10 [18] setter (MT7996 packer 24 -> 32); never called by the RAM firmware.
+0x00832238	func	icapSetCr10Mode	ICAP_CR10 [28:26] = 0 / 7 (SRAM interface select).
+0x00832262	func	icapSetCr10Bit31	ICAP_CR10 [31] = m (SRAM mode).
+0x0083a662	func	rfRead	A-die RF register read (reg, path). Callable through fwdbg: call 0x83a662 reg path.
+0x0083a66c	func	rfWrite	A-die RF register write (reg, value, path). HAZARD: never RF 0xbc, 0x21c, 0xcc4, 0xd20, 0xce0 (power, PLL, VCO calibration).
+0x0083c558	func	rfCalApi	ROM RF/calibration API (via *0x008229c4): runtime op table *0x0201456c (notes/04).
+0x0084502e	func	rfSynthSetFreq	RF synthesizer programming: LO words RF 0xc68/0xca8 (integer [29:20], 18-bit fraction [19:2], about 114 Hz per LSB at 2.4 GHz) (notes/04).
+0x0083e2e0	func	phyCalResultsClear	Clears the per-chain calibration result words (0x830076xx/78xx, 0x8300axxx).
+0x00840fd8	func	phySetBwRom	ROM PHY_BN_MODE writer: [27:24] = {0,1,2}[a0] else 3, [30:28] = a1 (band). Only callers are calibrations passing a0 = 1/2/3 and a1 = band, so the ROM has no narrow code either (notes/07).
+0x0084099a	func	phyCalBwSteps	Calibration that writes PHY_BN_MODE [27:24] = 0/1/2 with step counts 4/6/10.
+0x00841182	func	phyPowerOnBand	PHY power-on per band: PHY_BN_MODE [30:28] = band, 0x830a3008 |= 0x8c0000, 0x830a3024 |= 0xc0000; 2026 patch twin at 0x906050.
+0x00841342	func	phySetChainIdx	PHY_BN_CTRL 0x83080000 [5:4] = {0,1,2}[x] (table 0x850768): x is the chain index.
+0x00841418	func	phySetChainIdx2	0x83007240 [29:28] (table 0x850764): chain index as well.
+0x00846514	func	phyCalForceClocks	Calibration step: PHY_BN_CLKFORCE0/1 |= 0xffffff (all band clocks forced on).
+0x0083f074	func	txToneStartRom	ROM twin of RAM txToneStart, for 4 chains.
+0x008433ba	func	phyCalRoute	Calibration routing: 0x7c003014 [11:7] = 0x800 (path 0) / 0x200 (path 1).
+0x00847a5e	func	phyCalRxLoop	Calibration (path): 0x7c003014 [6:3] = 8 >> path, PHY_RXFE_CTRL |= 3, then a reset pulse on the chain's 0x8300e00c word.
+0x00847e1c	func	phyCalChain	Calibration helper; passes the path as the chain index (also its x0x10000 offset).
+0x00816742	func	axiDmaInit	Registers the AXI_DMA0..3 interrupt handlers and resets the per-channel callbacks.
+0x008167ea	func	axiDmaBusy	Returns AXI_DMAn_STS [0].
+0x0081683c	func	axiDmaClearSts	AXI_DMAn_STS = 0.
+0x00816892	func	axiDmaSet04	Channel +0x04 [0] = v.
+0x0081690e	func	axiDmaSet08	Channel +0x08 [0] = v.
+0x0081698a	func	axiDmaGet08	Returns channel +0x08 [0].
+0x008169dc	func	axiDmaSet0cBit0	Channel +0x0c [0] = v (start).
+0x00816a58	func	axiDmaGet0c	Returns channel +0x0c [0].
+0x00816aaa	func	axiDmaSet0cBit1	Channel +0x0c [1].
+0x00816b2e	func	axiDmaStartStop	(ch, 0): start and wait up to 1000 ticks for completion; (ch, 1): stop.
+0x00816ba2	func	axiDmaSet10Bit1	Channel +0x10 [1].
+0x00816c26	func	axiDmaSet10Bit0	Channel +0x10 [0].
+0x00816ca2	func	axiDmaGet10	Returns channel +0x10 [0].
+0x00816cf4	func	axiDmaStart10	Start through +0x10 [0] and wait.
+0x00816d5e	func	axiDmaSet14	Channel +0x14 [0].
+0x00816dda	func	axiDmaGet14	Returns channel +0x14 [0].
+0x00816e2c	func	axiDmaStart14	Start through +0x14 [0] and wait.
+0x00816e96	func	axiDmaGetCtrl	Returns AXI_DMAn_CTRL (+0x18).
+0x00816ee6	func	axiDmaSetCtrl	AXI_DMAn_CTRL (+0x18) = v.
+0x00816f34	func	axiDmaSetAddr0	AXI_DMAn_ADDR0 (+0x1c) = v.
+0x00816f82	func	axiDmaSetAddr1	AXI_DMAn_ADDR1 (+0x20) = v.
+0x00816fd2	func	axiDmaSet2c	Channel +0x2c = v (ring/second address modes).
+0x00817022	func	axiDmaSetLen	AXI_DMAn_LEN (+0x24) = v.
+0x00817072	func	axiDmaConfig	Configures a channel from a cfg struct: ADDR0 = cfg[1], ADDR1 = cfg[2], LEN = cfg[3]; mode from cfg[8,10,12,13,15] selects which control fields go into AXI_DMAn_CTRL ([29:28] cfg[6], [25:24] cfg[7], [20] cfg[8], [18:16] cfg[9], [15] cfg[10], [14:5] cfg[11], [0] cfg[14]); callback cfg[17]. A store to a PHY register costs 238 ns on the bus, so no DMA can feed a 10 Msps DAC (notes/07).
+0x0081722e	func	axiDmaChanAlloc	Allocates a free channel from a per-class bitmap (0xdeaddead = none).
+0x008172ac	func	axiDmaChanFree	Frees a channel bit.
+0x89020034	reg	MCU_TMR	MCU timer read by tmrNow
+0x89010080	reg	MCU_IRQ_UNMASK	interrupt unmask (irqUnmask)
+0x89010090	reg	MCU_IRQ_MASK	interrupt mask (irqMask)

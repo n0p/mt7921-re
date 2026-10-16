@@ -1,0 +1,93 @@
+0x83080000	reg	PHY_BN_CTRL	[12] '20 MHz only' flag (1 at 20, 0 otherwise); [5:4] chain index
+0x83080004	reg	PHY_BN_CLKFORCE0	band clock forces [23:0]: tone 0xffffff, ContiTx 0x38, tone stop 0
+0x83080008	reg	PHY_BN_CLKFORCE1	band clock forces [23:0] (second word)
+0x83080014	reg	PHY_RST_CTRL	logic resets, 1 = held: [17] TXFD [16] TXTD [15] TXFE ... [3] FFT [2] RXTD [1] RXFE. HAZARD: [17:0] holds PHY blocks in reset
+0x83081000	reg	PHY_BN_MODE	[31] narrow data path, [30] TX /4, [29] extra /2 (with [30] and [28]), [28] band, [27:24] PHY BW class (0/1/2/7 = 20/40/80/160; 4/5 RX /2 behind the FE and TX /8 when [30] = 0), [22:20] primary index. TX only ever runs /1, /4 or /8: no /2 (notes/07)
+0x83081010	reg	PHY_CNT_PD	packet detects [31:16] OFDM | [15:0] CCK
+0x83081014	reg	PHY_CNT_MDRDY	header decoded / RX vector ready [31:16] OFDM | [15:0] CCK
+0x83081018	reg	PHY_CNT_RXOK	frames handed to the MAC (bad FCS included)
+0x8308101c	reg	PHY_CNT_CCKERR	[31:16] CCK SIG errors | [15:0] SFD errors
+0x83081020	reg	PHY_CNT_OFDMERR	[31:16] OFDM SIG errors | [15:0] TAG errors
+0x83081024	reg	PHY_CNT_FCSERR	[31:16] OFDM | [15:0] CCK FCS errors
+0x83081044	reg	PHY_TXGEN_CTRL	ContiTx writes 0x10 then 0x30; stop writes 0
+0x83082004	reg	PHY_STSCNT_CTRL	counter enable: [11:9] STSCNT_EN (0 -> 5 edge clears), [2:0]
+0x83086010	reg	PHY_SFO_CONST	[27:16]/[11:0] = round(0x190000 / f_MHz), /2 for '10 MHz', /4 for '5 MHz' (MT7996 BN_6188)
+0x83088014	reg	PHY_DEMOD_TIMING	[31:24] stock 0xea; 0x75 revives SIGNAL decoding behind the class-4/5 /2 (20 MHz frames only)
+0x83088230	reg	PHY_STSCNT_RST	[29] counter reset pulse
+0x83088234	reg	PHY_STSCNT_EN2	|= 0x30000 enables the stage counters
+0x8308a004	reg	PHY_SIGGEN_START	band test-signal generator: 0x80000000 = run (ContiTx), 0 = stop; MT7996: (n + 0x30400000) << 2
+0x8308a008	reg	PHY_SIGGEN_CFG0	generator configuration words 0x8308a008..a054 (ContiTx copies the TX-vector latch into a008..a024 and a040..a04c)
+0x8308a830	reg	PHY_TXV_LATCH0	latch of the last TX vector (0x8308a830..85c, 12 words): word0 [10:8] BW, [15:12] mode (1 OFDM, 2 HT-MF, 3 HT-GF), word4 symbol count, word8 legacy rate
+0x8308b000	reg	PHY_TXTEST_CTRL0	TX test control: 0x44000000 ContiTx start, 0xcc000000 stop
+0x8308b004	reg	PHY_TXTEST_CTRL1	0x30000000 during ContiTx
+0x8308b020	reg	PHY_TXTEST_SEL	0x100000 when the ContiTx rate has no mode bits
+0x8308b024	reg	PHY_TXTEST_MODE	0x10 for OFDM ContiTx; table value for HT/VHT modes
+0x8308f060	reg	PHY_RXFE_60	RX front end word (AFIFO side)
+0x8308f064	reg	PHY_RXFE_CTRL	[7:4] code, [1:0]; stock 0x01010000; no narrow decode with any code (notes/03)
+0x8308f068	reg	PHY_RXFE_01	WF_RXFE_01: [1:0] MAN_DOWNSAMP, [3] AFIFO_CK320M, [6:3] DLPF manual, [16] ADC480M, [15:12] WB_SEL, [27:26] RXFDIQ_TAP_NUM; live 0x08000000
+0x8308fc00	reg	PHY_TONE_CTRL	band tone generator control (bins, enables)
+0x8308fc04	reg	PHY_TONE_CTRL1	tone generator (0x100 at stop)
+0x8308fc08	reg	PHY_TONE_DC_IQ	DC tone I [11:0] / Q [27:16]: a live linear IQ DAC (MCU stores 238 ns each, 4.2 M/s)
+0x8308fc0c	reg	PHY_TONE_LATCH	[0] latch pulse: knocks the generator off the carrier, do not use
+0x8308fc20	reg	PHY_TONE_FC20	tone generator word (0 at stop)
+0x83091000	reg	PHY_BN1_MODE	band 1 BN_MODE (ContiTx/tone with DBDC = 1)
+0x8309a004	reg	PHY_BN1_SIGGEN_START	band 1 test-signal generator start
+0x8309b000	reg	PHY_BN1_TXTEST_CTRL0	band 1 TX test control
+0x830000dc	reg	PHY_WF0_AGC_PORT	AGC table write port: 0x80 | idx<<16 | v (48 entries)
+0x83007254	reg	PHY_WF0_TRX_CLK	[5:4] TX-DAC clock on, [7:6] RX-ADC clock on (enables only, no rate)
+0x8300c000	reg	PHY_WF0_TSSI_CTRL	TSSI/power-control word; bit 31 cleared by ContiTx/tone, stock 0xc0c80806
+0x8300c508	reg	PHY_WF0_TONE_PWR	[31] tone power override, [23:16] power
+0x8300d008	reg	PHY_WF0_TXPATH	antenna/TX path select (ContiTx |= 0xc0; 0x1d10 after stop, 0x1d00 after tone stop)
+0x8300d06c	reg	PHY_WF0_DEMOD_CLASS	[6:3] one-hot demodulator class (bit 5 at 20 MHz); bits 3/4 never set
+0x8300d0ac	reg	PHY_WF0_SFO_CFO	[25:8] SFO-from-CFO constant round(0x1400000 / f_MHz) << s
+0x8301c000	reg	PHY_WF1_TSSI_CTRL	path 1 twin of PHY_WF0_TSSI_CTRL
+0x8301c508	reg	PHY_WF1_TONE_PWR	path 1 twin of PHY_WF0_TONE_PWR
+0x8301d008	reg	PHY_WF1_TXPATH	path 1 twin of PHY_WF0_TXPATH
+0x830a0080	reg	PHY_WFCOMM_PRIMCH	[7:4] 2.4 GHz channel index
+0x830ac004	reg	PHY_TXTEST_TOP	0x16011400 during ContiTx, 0x16151400 after
+0x830ac054	reg	PHY_TXTEST_TOP54	0x10 (band 0) / 0x30 (band 1) during ContiTx
+0x830ac058	reg	PHY_TXTEST_TOP58	1 during ContiTx
+0x830ad4d8	reg	PHY_TXGEN_GAIN	0x101f1f10 during ContiTx; 0x1010101 after tone stop
+0x820b00a0	reg	WFSYS_TICKCR0	[1:0] WLAN_CLK_MODE, [4:2] LMAC_1X_MODE: 0 / 0x5 / 0xa at 20 / 10 / 5 MHz. MAC tick (TX end, slot, SIFS), not the PHY clock. Only TICKCR0 [4:0] may be written in WFSYS_ON
+0x820b00a8	reg	WFSYS_PWR_SEQ	[11:10] = 3 wake / 2 sleep (wfsysPowerSeq). HAZARD: do not write
+0x820e3000	reg	ARB_SCR	[8] MAC TX off, [9] MAC RX off
+0x820e2004	reg	AGG_BWCR	[3:2] MAC bandwidth class (MT7996 RATE BWCR role)
+0x820e4008	reg	TMAC_BANDPARAM	[8:0] = 0xbe (2.4 GHz) / 4 (5 GHz)
+0x820e40c8	reg	TMAC_CDTR	[31:16] / [15:0] (ROM FUN_8288d0)
+0x820e40cc	reg	TMAC_ODTR	[31:16] / [15:0] (ROM FUN_8288d0)
+0x89020068	reg	MCU_US_TIMER	free-running 1 MHz counter
+0x81026008	reg	MCU_DVFS	MCU/bus DVFS divider set (dvfsSwitch)
+0x88009004	reg	PSE_ICAP_GRANT	[27:24] = 0xf lends SRAM banks to ICAP. HAZARD: never write [23:0]
+0x7c003004	reg	CONN_AFE_XTALMODE	per-crystal codes: [1:0] = 2 and [7:6] = 1 for 24 and 40 MHz, 3/3 for 25, 3/1 for 26; [3:2] = [17:16] = 3. Not a divider. HAZARD: do not write (clock-tree root)
+0x7c0030f4	reg	CONN_AFE_XTALCNT	crystal-cycle counts: [14:0] = 50.5 x f_MHz, [30:16] = 30.3 x f_MHz
+0x7c005004	reg	CONN_WF_PWRCTL	WF power handshake control (wfsysPowerSeq). HAZARD: leave alone
+0x7c005008	reg	CONN_WF_PWRSTS	WF power handshake status bits polled by wfsysPowerSeq
+0x80021090	reg	ICAP_CR0	control: [0] EN, [1] CAPTURE, [3:2] TIME_ADJ, [7:4] 0xf, [10] SW_RST_B, [13] RING, [17] WRAP, [22:20] SRC_SEL, [23] SWITCH (0x24f3 ring start, 0x4f0 stop)
+0x80021098	reg	ICAP_CR2	ADDR0_START (4-byte units)
+0x8002109c	reg	ICAP_CR3	ADDR0_END (4-byte units, inclusive)
+0x800210a4	reg	ICAP_CR5	stop cycle
+0x800210b0	reg	ICAP_CR8	[0] band, [27] FPGA_LOWRATE
+0x800210b4	reg	ICAP_CR9	live write pointer
+0x800210b8	reg	ICAP_CR10	[19:16] input packers (2 = uniform 10 Msps, 8 = 30 Msps, 0 = 40 Msps); [28:26], [31] SRAM-interface selects
+0x800210bc	reg	ICAP_CR11	SYSRAM_OFFSET (zeroed before every capture)
+0x800210c0	reg	ICAP_CR12	PSE_END_ADDR (zeroed before every capture)
+0x80010000	reg	AXI_DMA0_STS	[0] busy/enable status (ROM AXI DMA driver, mcu/driver/axi_dma.c; unused by the RAM firmware)
+0x80010018	reg	AXI_DMA0_CTRL	control word: [29:28], [25:24] 2-bit fields, [20], [18:16], [15], [14:5] count, [1], [0] (axiDmaConfig)
+0x8001001c	reg	AXI_DMA0_ADDR0	first address (axiDmaConfig cfg[1])
+0x80010020	reg	AXI_DMA0_ADDR1	second address (axiDmaConfig cfg[2])
+0x80010024	reg	AXI_DMA0_LEN	length (axiDmaConfig cfg[3])
+0x80010100	reg	AXI_DMA1_STS	[0] busy/enable status (ROM AXI DMA driver, mcu/driver/axi_dma.c; unused by the RAM firmware)
+0x80010118	reg	AXI_DMA1_CTRL	control word: [29:28], [25:24] 2-bit fields, [20], [18:16], [15], [14:5] count, [1], [0] (axiDmaConfig)
+0x8001011c	reg	AXI_DMA1_ADDR0	first address (axiDmaConfig cfg[1])
+0x80010120	reg	AXI_DMA1_ADDR1	second address (axiDmaConfig cfg[2])
+0x80010124	reg	AXI_DMA1_LEN	length (axiDmaConfig cfg[3])
+0x80010200	reg	AXI_DMA2_STS	[0] busy/enable status (ROM AXI DMA driver, mcu/driver/axi_dma.c; unused by the RAM firmware)
+0x80010218	reg	AXI_DMA2_CTRL	control word: [29:28], [25:24] 2-bit fields, [20], [18:16], [15], [14:5] count, [1], [0] (axiDmaConfig)
+0x8001021c	reg	AXI_DMA2_ADDR0	first address (axiDmaConfig cfg[1])
+0x80010220	reg	AXI_DMA2_ADDR1	second address (axiDmaConfig cfg[2])
+0x80010224	reg	AXI_DMA2_LEN	length (axiDmaConfig cfg[3])
+0x80010300	reg	AXI_DMA3_STS	[0] busy/enable status (ROM AXI DMA driver, mcu/driver/axi_dma.c; unused by the RAM firmware)
+0x80010318	reg	AXI_DMA3_CTRL	control word: [29:28], [25:24] 2-bit fields, [20], [18:16], [15], [14:5] count, [1], [0] (axiDmaConfig)
+0x8001031c	reg	AXI_DMA3_ADDR0	first address (axiDmaConfig cfg[1])
+0x80010320	reg	AXI_DMA3_ADDR1	second address (axiDmaConfig cfg[2])
+0x80010324	reg	AXI_DMA3_LEN	length (axiDmaConfig cfg[3])

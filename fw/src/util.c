@@ -58,3 +58,18 @@ u32 hk_bench(u32 src, u32 n, u32 stride, u32 dst)
 	bench_sink = acc;
 	return *t - t0;
 }
+
+/* Bus write timing for one register: n stores (n even) alternating v0 and v1 to addr, as fast as the loop runs.
+ * Returns elapsed microseconds. 0x8308fc08 (the tone generator's DC word) answers whether a DMA- or loop-fed IQ DAC
+ * could reach the 10 Msps a 10 MHz OFDM signal needs. */
+u32 hk_wrspeed(u32 addr, u32 n, u32 v0, u32 v1)
+{
+	volatile u32 *p = (volatile u32 *)addr, *t = (volatile u32 *)MCU_US_TIMER;
+	u32 t0 = *t, i;
+
+	for (i = 0; i < n; i += 2) {
+		*p = v0;
+		*p = v1;
+	}
+	return *t - t0;
+}

@@ -36,6 +36,9 @@
  * the TXD (DW3 REM_TX_COUNT) of every injected frame, through a kretprobe on mt76_connac2_mac_write_txwi. mt76 always
  * asks for 15; the ÷8 (2.5 MHz) transmitter ends every PPDU 3 symbols early, the MAC takes that as a failure and
  * sends each frame ~11-15 times, so narrow-band nodes set 1.
+ * Module parameters tx_bw and tx_rate (same probe, 0 = leave): tx_bw 1..4 forces the TX vector bandwidth of injected
+ * frames (DW6 FIXED_BW + BW = tx_bw - 1: 20 / 40 / 80 / 160 MHz); tx_rate writes the DW6 rate code (mode << 6 | index,
+ * e.g. 0x4b OFDM 6 Mbps, 0x80 HT MCS0). Used to test whether the narrow divider scales with the TX-vector bandwidth.
  */
 #include <linux/module.h>
 #include <linux/debugfs.h>
@@ -118,7 +121,16 @@ static struct kprobe rxbw_kp = {
 static unsigned int tx_count;
 module_param(tx_count, uint, 0644);
 MODULE_PARM_DESC(tx_count, "TXD transmission attempts of injected frames (1-31; 0 = leave mt76's 15)");
+static unsigned int tx_bw;
+module_param(tx_bw, uint, 0644);
+MODULE_PARM_DESC(tx_bw, "TX vector bandwidth of injected frames: 1..4 = 20/40/80/160 MHz (0 = leave)");
+static unsigned int tx_rate;
+module_param(tx_rate, uint, 0644);
+MODULE_PARM_DESC(tx_rate, "DW6 rate code of injected frames (mode << 6 | index; 0 = leave)");
 #define MT_TXD3_REM_TX_COUNT	GENMASK(15, 11)
+#define MT_TXD6_TX_RATE		GENMASK(29, 16)
+#define MT_TXD6_FIXED_BW	BIT(2)
+#define MT_TXD6_BW		GENMASK(1, 0)
 static bool txc_registered;
 
 struct txc_data {
@@ -139,13 +151,23 @@ static int txc_entry(struct kretprobe_instance *ri, struct pt_regs *regs)
 static int txc_ret(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct txc_data *d = (struct txc_data *)ri->data;
-	unsigned int n = READ_ONCE(tx_count);
+	unsigned int n = READ_ONCE(tx_count), bw = READ_ONCE(tx_bw), rate = READ_ONCE(tx_rate);
 	u32 v;
 
-	if (!n || !d->txwi || !d->skb || !(IEEE80211_SKB_CB(d->skb)->flags & IEEE80211_TX_CTL_INJECTED))
+	if (!d->txwi || !d->skb || !(IEEE80211_SKB_CB(d->skb)->flags & IEEE80211_TX_CTL_INJECTED))
 		return 0;
-	v = le32_to_cpu(d->txwi[3]) & ~MT_TXD3_REM_TX_COUNT;
-	d->txwi[3] = cpu_to_le32(v | FIELD_PREP(MT_TXD3_REM_TX_COUNT, min(n, 31u)));
+	if (n) {
+		v = le32_to_cpu(d->txwi[3]) & ~MT_TXD3_REM_TX_COUNT;
+		d->txwi[3] = cpu_to_le32(v | FIELD_PREP(MT_TXD3_REM_TX_COUNT, min(n, 31u)));
+	}
+	if (bw >= 1 && bw <= 4) {
+		v = le32_to_cpu(d->txwi[6]) & ~MT_TXD6_BW;
+		d->txwi[6] = cpu_to_le32(v | MT_TXD6_FIXED_BW | FIELD_PREP(MT_TXD6_BW, bw - 1));
+	}
+	if (rate) {
+		v = le32_to_cpu(d->txwi[6]) & ~MT_TXD6_TX_RATE;
+		d->txwi[6] = cpu_to_le32(v | FIELD_PREP(MT_TXD6_TX_RATE, rate));
+	}
 	return 0;
 }
 

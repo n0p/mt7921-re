@@ -39,6 +39,8 @@ Usage: nbrxd.py <A|B> <MHz> [options]
   --regain           re-apply the manual gain forces before every slice (a near-field transmitter can trip a
                      receive protection that otherwise stays latched)
   --dump FILE        also save every IQ record read (the format of tools/sdr/iqrec.py) for offline decoding
+  --dump-gate X      with --dump: after the first 2000 records (a noise reference), keep only records whose mean
+                     power exceeds X times that noise, plus one record on each side (TX scans)
   --rx-only          receive-only node: frames the kernel sends on the TAP are dropped (a streaming card must not
                      transmit: see --tx-only)
   --tx-only          transmit-only node: no capture ever runs on this card (the capture ring overwrites the packet
@@ -501,6 +503,62 @@ def keep_off_usb_irq_cpus():
         os.sched_setaffinity(0, cpus)
 
 
+class GatedDump:
+    """--dump-gate: the first REF records as they come (the noise reference), then only records whose mean power exceeds
+    `gate` times the reference median, with one record of context on each side. A loud stretch is cut after MAXRUN
+    records (a stuck transmitter would otherwise outrun the disk and the reader): it shows up as a ~5 ms burst."""
+    REF = 2000
+    MAXRUN = 40
+    WINDOW, BUDGET = 7000, 600  # at most BUDGET records written per WINDOW records (~1 s): a TX storm cannot fill the disk
+
+    def __init__(self, f, gate, pack):
+        self.f, self.gate, self.pack = f, gate, pack
+        self.buf, self.ref, self.noise, self.prev, self.after, self.run = bytearray(), [], None, None, 0, 0
+        self.seen, self.written = 0, 0
+
+    def _write(self, rec):
+        if self.written < self.BUDGET:
+            self.f.write(rec)
+            self.written += 1
+
+    def write(self, d):
+        self.buf += d
+        off = 0
+        while off + 16 <= len(self.buf):
+            n = struct.unpack_from("<4I", self.buf, off)[3]
+            if off + 16 + n > len(self.buf):
+                break
+            rec = bytes(self.buf[off:off + 16 + n])
+            off += 16 + n
+            w = np.frombuffer(rec[16:], np.uint32)
+            x = iqrec.words_to_iq(w[:len(w) // 32 * 32].reshape(-1, 32)[:, :4].ravel(), self.pack)  # 1/8 subsample
+            p = float(np.mean(np.abs(x) ** 2)) if len(x) else 0.0
+            if self.noise is None:
+                self.f.write(rec)
+                self.ref.append(p)
+                if len(self.ref) >= self.REF:
+                    self.noise = float(np.median(self.ref)) + 1e-9
+                continue
+            self.seen += 1
+            if self.seen >= self.WINDOW:
+                self.seen, self.written = 0, 0
+            if p > self.gate * self.noise:
+                self.run += 1
+                if self.run > self.MAXRUN:
+                    continue
+                if self.prev:
+                    self._write(self.prev)
+                    self.prev = None
+                self._write(rec)
+                self.after = 1
+            elif self.after:
+                self._write(rec)
+                self.after, self.run = 0, 0
+            else:
+                self.prev, self.run = rec, 0
+        del self.buf[:off]
+
+
 def main():
     keep_off_usb_irq_cpus()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -526,6 +584,7 @@ def main():
     ap.add_argument("--tx-only", action="store_true")
     ap.add_argument("--rx-only", action="store_true")
     ap.add_argument("--dump")
+    ap.add_argument("--dump-gate", type=float)
     ap.add_argument("--regain", action="store_true")
     ap.add_argument("--min-rx-ms", type=int, default=30)
     ap.add_argument("--tx-mode", choices=["anytime", "window"], default="window")
@@ -581,7 +640,7 @@ def main():
     with open(DBG + "iqbind", "w") as f:  # route this card's stream to its slot (also empties the ring)
         f.write(f"{SLOT[a.card]} {card.phy}")
     fd = os.open(DBG + f"iq{SLOT[a.card]}", os.O_RDONLY)
-    dump = open(a.dump, "wb") if a.dump else None
+    dump = (GatedDump(open(a.dump, "wb"), a.dump_gate, a.pack) if a.dump_gate else open(a.dump, "wb")) if a.dump else None
     buf = bytearray()
     stop = threading.Event()
     end = t0 + a.seconds if a.seconds else None
